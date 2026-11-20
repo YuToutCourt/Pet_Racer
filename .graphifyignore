@@ -1,0 +1,11 @@
+# graphify : corpus = classes décompilées + sources du mod + notes
+# (le jeu, la JRE, les binaires compilés et les outils partagés sont exclus)
+game_dev/
+game_dev_b/
+game_pristine/
+build/
+tools/
+graphify-out/
+*.iso
+*.png
+*.bak

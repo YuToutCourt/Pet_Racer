@@ -1,0 +1,81 @@
+﻿MOD DE PET RACER
+================
+
+Ce dossier contient le mod, pas le jeu : il te faut Pet Racer (Techland) déjà installé sur ton PC.
+
+
+INSTALLER
+---------
+
+1. Ferme Pet Racer s'il est ouvert.
+2. Décompresse tout le zip dans un dossier (ne lance pas Installer.bat depuis l'aperçu du zip).
+3. Double-clique sur Installer.bat.
+   - Il cherche le dossier du jeu. S'il ne le trouve pas, il te le demande : c'est le dossier où se
+     trouve PetRacer.exe (souvent « Pet Racer\game »).
+   - Si le jeu est dans « Program Files », Windows demande les droits d'administrateur : accepte.
+   - S'il demande l'adresse du serveur, tape celle que t'a donnée celui qui héberge les parties.
+4. Lance le jeu comme d'habitude.
+
+Windows peut afficher « Windows a protégé votre ordinateur » au double-clic : clique sur
+« Informations complémentaires » puis « Exécuter quand même ». Le script est lisible : ouvre
+install.ps1 avec le Bloc-notes pour voir ce qu'il fait.
+
+Pour une nouvelle version du mod : refais la même chose avec le nouveau zip. Tes sauvegardes, tes
+réglages du mod et l'adresse du serveur sont gardés.
+
+
+CE QUE CHANGE LE MOD
+--------------------
+
+- Résolutions modernes (1080p, 1440p, 4K, écran large) et jeu fluide à plus de 30 images/s.
+- Menu principal, bouton engrenage : réglages du mod (déblocages, limite d'images, difficulté des
+  IA, triches...).
+- Un joueur, bouton Grand Prix : coupe de 4 courses tirées au hasard.
+- Nouveaux bonus (fusée, missile qui vise le premier), IA plus malignes, stats des animaux à
+  l'écran du choix.
+- Menu principal, bouton « En ligne » : courses jusqu'à 6 par Internet.
+
+
+JOUER EN LIGNE
+--------------
+
+Menu principal, bouton « En ligne ». La ligne « Que faire ? » propose :
+
+- Partie rapide : course classée contre des joueurs d'Elo proche. Choisis ton animal, puis OK :
+  la course part dès que 6 joueurs attendent, ou après 15 secondes s'il y en a au moins 2. Les
+  places vides sont prises par des IA. Quitter la course compte comme arrivé dernier.
+- Créer un salon : tu reçois un code de 4 lettres à donner à tes amis. Tu choisis le circuit, les
+  tours, les bonus et les IA, et tu lances quand tout le monde est prêt.
+- Rejoindre un salon : tape le code de 4 lettres, puis OK.
+- Classement : les 10 meilleurs Elo.
+
+Tu n'as aucun port à ouvrir sur ta box. Tout le monde doit avoir la même version du mod.
+Les triches du menu engrenage ne marchent pas en ligne.
+
+Ton compte en ligne est le fichier online.dat, créé dans le dossier du jeu à ta première visite de
+l'écran « En ligne » (un compte par profil). Ne le donne à personne (qui l'a joue sous ton nom) et
+garde-le si tu réinstalles le jeu : sans lui tu repars à 1000 Elo.
+
+
+CHANGER L'ADRESSE DU SERVEUR
+----------------------------
+
+Relance Installer.bat depuis une invite de commandes avec l'adresse :
+
+    Installer.bat -Server nouvelle.adresse
+
+ou ouvre Data\online.scr (dans le dossier du jeu) avec le Bloc-notes et change la ligne
+Server("adresse", 7778).
+
+
+RETIRER LE MOD
+--------------
+
+Double-clique sur Desinstaller.bat : les fichiers d'origine du jeu sont remis (ils étaient gardés
+dans le dossier mod_backup du jeu) et ceux du mod sont supprimés. Tes sauvegardes restent en place.
+
+
+EN CAS DE PROBLÈME
+------------------
+
+Envoie le fichier crash.log du dossier du jeu à celui qui t'a donné le mod.

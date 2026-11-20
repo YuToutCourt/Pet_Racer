@@ -1,0 +1,13 @@
+/* Pet Racer (mod) : multijoueur en ligne, lu au lancement du jeu.
+ *
+ * Server("adresse", port) : serveur des salons (server\server.py). Port 7778 par defaut (pet_soccer garde le 7777).
+ * Ranked(tours, niveau des IA) : partie rapide classee. Circuit tire au sort, boites bonus, places libres
+ *   completees par des IA de ce niveau (1 auto, 2 facile, 3 normal, 4 difficile, 5 expert). Tous les joueurs
+ *   doivent avoir les memes valeurs : c'est celles de l'hote qui comptent.
+ * Les reglages de test propres a un dossier de jeu sont dans nettest.scr, a la racine du jeu (voir notes/online.md).
+ */
+!Server(s,i)
+!Ranked(i,i)
+
+Server("127.0.0.1", 7778)
+Ranked(3, 3)

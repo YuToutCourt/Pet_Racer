@@ -1,0 +1,52 @@
+/* Pet Racer (mod) : tirage des bonus selon la place, lu au lancement du jeu.
+ *
+ * Une ligne par bonus : Bonus("Nom", partout, p1, p2, p3, p4, p5, p6)
+ *   partout : 1 = ajoute a la liste de tous les mondes, 0 = seulement dans les mondes ou le jeu d'origine le met
+ *             (les courses extra "turbo seul", "bombes seules" et "sans bonus" gardent leur regle)
+ *   p1..p6  : poids de tirage pour le 1er, 2e, ... 6e (dernier). 0 = jamais a cette place.
+ *             Seuls comptent les bonus du monde en cours : un poids est relatif aux autres bonus du monde.
+ *             En duel (aventure), le 1er tire avec p1 et le 2e avec p6.
+ * Vaut pour le joueur comme pour les adversaires. Bonus sans ligne : poids 5 partout.
+ * Fichier absent : tirage d'origine (au hasard, sans tenir compte de la place, pas de Fusee).
+ *
+ * Idee des valeurs ci-dessous : devant, surtout des pieges a laisser derriere soi (les projectiles ne visent que
+ * les voitures de devant) ; derriere, Fusee, OVNI, turbo et projectiles pour revenir.
+ * Mondes d'origine : partout Bombe, Bouchon, Catapulte, Turbo, Protection, Huile, Gaz, Cookie ;
+ * Foret + Guepes, Tomates ; Desert + Pasteque, Coco ; Tropique + Banane, Eau ;
+ * Hiver + Bouteille, Enclume, Pointes, Glace, Neige ; Lune + Pointes, Ovni ; Royal : rien de plus.
+ */
+!Bonus(s,f,f,f,f,f,f,f)
+
+// pieges laisses derriere soi
+Bonus("Catapulte",  0, 10, 8, 6, 4, 3, 2)
+Bonus("Huile",      0, 10, 8, 6, 4, 3, 2)
+Bonus("Gaz",        0, 10, 8, 6, 4, 3, 2)
+Bonus("Bouteille",  0, 10, 8, 6, 4, 3, 2)
+Bonus("Banane",     0, 10, 8, 6, 4, 3, 2)
+Bonus("Enclume",    0, 10, 8, 6, 4, 3, 2)
+
+// sur soi
+Bonus("Protection", 0,  6, 6, 5, 4, 3, 3)
+Bonus("Pointes",    0,  4, 4, 4, 4, 4, 4)
+Bonus("Turbo",      0,  1, 3, 5, 7, 9, 10)
+
+// projectiles et pistolets (visent une voiture devant)
+Bonus("Bouchon",    0,  1, 6, 8, 8, 8, 8)
+Bonus("Guepes",     0,  1, 6, 8, 8, 8, 8)
+Bonus("Tomates",    0,  1, 6, 8, 8, 8, 8)
+Bonus("Coco",       0,  1, 6, 8, 8, 8, 8)
+Bonus("Neige",      0,  1, 6, 8, 8, 8, 8)
+Bonus("Cookie",     0,  1, 6, 8, 8, 8, 8)
+Bonus("Glace",      0,  1, 6, 8, 8, 8, 8)
+Bonus("Eau",        0,  1, 6, 8, 8, 8, 8)
+
+// lances devant, explosion en zone
+Bonus("Bombe",      0,  2, 6, 7, 7, 7, 7)
+Bonus("Pasteque",   0,  2, 6, 7, 7, 7, 7)
+
+// les plus forts, pour les derniers
+Bonus("Fusee",      1,  0, 1, 3, 6, 9, 10)
+Bonus("Ovni",       0,  0, 1, 3, 6, 9, 10)
+
+// Missile (bonus du mod) : vise toujours le premier, ou le 2e si c'est le tireur. Plus rare que la Fusee.
+Bonus("Missile",    1,  0, 0, 0, 3, 5, 6)

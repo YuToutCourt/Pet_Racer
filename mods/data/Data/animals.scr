@@ -1,0 +1,26 @@
+/* Pet Racer (mod) : stats des animaux, lues au lancement du jeu.
+ *
+ * Une ligne par animal : Animal("Nom", acceleration, vitesse, virage)
+ *   acceleration : x 500   (puissance au demarrage et en reprise)
+ *   vitesse      : x 4500  (vitesse maximale)
+ *   virage       : x 80    (angle de braquage maximal, en degres)
+ * 1.0 = base du jeu. Valeurs acceptees : 0.3 a 2.0 (sinon la valeur d'origine est gardee).
+ * Vaut pour le joueur comme pour les adversaires. Ligne absente ou fichier absent = valeurs d'origine.
+ * Les barres de l'ecran de choix suivent ces valeurs (0.8 = moitie, 1.0 = plein ; plus haut, l'echelle s'agrandit).
+ * Les mondes gardent leurs reglages (Desert, Hiver : acceleration reduite ; Royal : vitesse egale pour tous).
+ * Valeurs ci-dessous = jeu d'origine.
+ */
+!Animal(s,f,f,f)
+
+Animal("Panthere",   0.90, 1.00, 0.80)
+Animal("Dino",       0.90, 0.80, 0.90)
+Animal("Poulet",     0.90, 0.90, 0.95)
+Animal("Grenouille", 0.85, 0.85, 1.00)
+Animal("Tortue",     0.90, 0.80, 1.00)
+Animal("Requin",     0.95, 0.90, 0.85)
+Animal("Taureau",    0.90, 1.00, 0.90)
+Animal("Girafe",     0.95, 0.95, 0.80)
+Animal("Ours",       0.90, 0.90, 0.90)
+Animal("Gorille",    0.90, 0.90, 0.90)
+Animal("Robot",      0.80, 0.90, 1.00)
+Animal("Lion",       0.90, 1.00, 0.80)

@@ -1,0 +1,18 @@
+/* Pet Racer (mod) : Grand Prix, lu au lancement du jeu.
+ *
+ * Une coupe = Races courses tirees au hasard : un monde au hasard parmi les mondes debloques (le Royaume du
+ * Lion compte comme un monde), puis un circuit debloque de ce monde (aller ou retour), jamais deux fois le meme.
+ * Memes adversaires et meme nombre de tours pour toute la coupe.
+ *
+ *   Races(n)                     : nombre de courses de la coupe, 1 a 8
+ *   Points(p1,p2,p3,p4,p5,p6)    : points du 1er, 2e, ... 6e (0 a 100)
+ *
+ * Classement : points, puis nombre de victoires, puis place a la derniere course.
+ * Course quittee (Echap) : 0 point pour le joueur, classe dernier ; la coupe continue.
+ * Fichier absent : 4 courses, 10/8/6/4/2/1.
+ */
+!Races(f)
+!Points(f,f,f,f,f,f)
+
+Races(4)
+Points(10, 8, 6, 4, 2, 1)
