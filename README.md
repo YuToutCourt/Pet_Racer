@@ -5,10 +5,34 @@
 **Une seconde vie pour Pet Racer (Techland)** : courses en ligne jusqu'à 6, classement Elo, Grand Prix,
 nouveaux bonus, une IA refaite et le jeu enfin à l'aise sur un PC moderne (1440p, 4K, 144 Hz).
 
+<img src="docs/screens/course.jpg" alt="Une course en cours, HUD aux bords de l'écran" width="720">
+
 </div>
 
 > **Le jeu n'est pas fourni.** Ce dépôt contient seulement le mod : il te faut ton propre exemplaire de Pet Racer
 > déjà installé.
+
+## Aperçu
+
+<table>
+<tr>
+<td align="center"><img src="docs/screens/menu.jpg" alt="Menu principal avec les boutons En ligne et Mods" width="400"><br>Menu principal : en ligne et menu Mods</td>
+<td align="center"><img src="docs/screens/online.jpg" alt="Salon en ligne : code, joueurs, réglages de la course" width="400"><br>En ligne : salon à code, jusqu'à 6, IA en renfort</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screens/animaux.jpg" alt="Choix de l'animal avec ses stats" width="400"><br>Choix de l'animal, avec ses stats</td>
+<td align="center"><img src="docs/screens/grandprix.jpg" alt="Classement du Grand Prix" width="400"><br>Grand Prix : 4 courses, points 10/8/6/4/2/1</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screens/missile.jpg" alt="Le Missile bleu monté sur la voiture" width="400"><br>Le Missile (en bleu) : il vise le premier</td>
+<td align="center"><img src="docs/screens/mods.jpg" alt="Menu Mods" width="400"><br>Menu Mods : déblocages, FPS, difficulté des IA</td>
+</tr>
+</table>
+
+<p align="center">
+<img src="docs/screens/rapport_ia.jpg" alt="Rapport d'entraînement des IA : courbe d'évolution et trajectoires par circuit" width="820"><br>
+<em>Le rapport d'entraînement des IA : les plans de course s'améliorent circuit après circuit.</em>
+</p>
 
 ## Ce que le mod ajoute
 
