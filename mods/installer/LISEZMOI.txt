@@ -33,6 +33,8 @@ CE QUE CHANGE LE MOD
 - Un joueur, bouton Grand Prix : coupe de 4 courses tirées au hasard.
 - Nouveaux bonus (fusée, missile qui vise le premier), IA plus malignes, stats des animaux à
   l'écran du choix.
+- Les IA apprennent les circuits (murs, endroits dangereux) au fil des courses : c'est gardé dans
+  aimap.dat. Le mod en donne une déjà entraînée si tu n'en as pas ; la tienne n'est jamais écrasée.
 - Menu principal, bouton « En ligne » : courses jusqu'à 6 par Internet.
 
 

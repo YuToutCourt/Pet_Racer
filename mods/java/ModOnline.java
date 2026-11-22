@@ -27,7 +27,7 @@ class ModOnline {
    // [mod] phase 4 : partie rapide classée, réglages imposés (Ranked(tours, niveau des IA) de Data\online.scr) ; le
    // circuit est tiré au sort par l'hôte, boîtes bonus toujours, les places libres complétées par des IA
    static int m_nRankedLaps = 3;
-   static int m_nRankedAi = 3; // ModAI : 1 auto, 2 facile, 3 normal, 4 difficile, 5 expert
+   static int m_nRankedAi = 5; // ModAI : 1 auto, 2 facile, 3 normal, 4 difficile, 5 expert
 
    static int m_nLocalPort = 0;
    static String m_sAuto = null;

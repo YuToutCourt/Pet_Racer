@@ -12,7 +12,13 @@ import java.io.FileWriter;
 // RacerGame.EndModule) :
 // - les murs appris : un choc contre le décor dit de quel côté était l'obstacle, le bord du couloir de ce côté recule
 //   d'un pas, pour toujours (2026-11-20 : « plus je joue mieux ça sera ») ;
-// - les points dangereux (freiner plus, rester au milieu du couloir), un peu oubliés à chaque course.
+// - les points dangereux (freiner plus, rester au milieu du couloir) : moyenne glissante d'une course à l'autre
+//   (2026-11-20, v2 : avant, les 6 IA ajoutaient chacune +0,5 par choc à une table commune, plafonnée à 1 et oubliée
+//   de 10 % par course : toutes les portes étaient à 100 % dès la 1re course, les IA roulaient partout au milieu en
+//   freinant et n'apprenaient plus rien. Les anciennes lignes de dangers sont ignorées, les murs appris gardés) ;
+// - les vitesses de passage (2026-11-21) : un choc contre le décor baisse la vitesse permise aux deux portes d'avant
+//   (sous celle qu'avait l'IA en y passant) ; chaque passage propre la remonte un peu. Pour les sauts suivis d'un
+//   virage (Hiver 3) et les virages serrés où l'on arrive trop vite (Forêt 3 retour).
 class ModAIMap {
    static final String _SAVE_FILE = "aimap.dat";
    static final float _LEARN_STEP = 35.0F;    // un choc : le bord du couloir passe à ça de la voiture, côté obstacle
@@ -24,10 +30,19 @@ class ModAIMap {
    static final float _CAR_HALF = 55.0F;      // demi-largeur d'une voiture : un obstacle ferme aussi les couloirs voisins
    static final float _SKY = 1500.0F;         // départ des rayons verticaux (ponts)
    static final float _WALL = 0.3F;           // Vehicle : _MAX_SLOPE_ANGLE ; plus raide = mur
-   static final float _KEEP = 0.9F;           // part des dangers appris gardée d'une course à l'autre
+   static final float _KEEP = 0.6F;           // dangers : nouvelle mémoire = ancienne × _KEEP + course × (1 − _KEEP)
+   static final String _DANGER_KEY = "|dangers"; // v2 (moyenne glissante) ; l'ancienne ligne « clé=… » est ignorée
    static final int _RETRY = 3;               // objets sans collision traversés par un rayon
+   // vitesses de passage apprises (part de la vitesse maxi de l'animal, 1 = pas de limite)
+   static final float _SPEED_CUT = 0.92F;     // choc : la porte d'avant passe à 92 % de la vitesse qu'on y avait
+   static final float _SPEED_CUT2 = 0.96F;    // celle d'encore avant : 96 %
+   static final float _SPEED_MIN = 0.5F;      // jamais moins
+   static final float _SPEED_RELAX = 0.006F;  // passage propre : + 0,6 point
+   static final float _SPEED_FROM = 0.55F;    // pas de leçon pour un choc à moins de 55 % de la vitesse maxi
+   static final String _SPEED_KEY = "|vitesses";
 
    static String m_sLevel = "?";              // RacerGame.LoadLevel
+   static boolean m_bReversed = false;        // circuit retourné (RacerModule.ReverseTrack), remis à faux par LoadLevel
    static Track m_Track = null;
    static String m_sKey = null;
    static float[] m_aLo = null;               // couloir à suivre à la porte i, décalages (> 0 vers la droite de la porte) :
@@ -44,9 +59,17 @@ class ModAIMap {
    static float[] m_aRZ = null;
    static float[] m_aLW = null;
    static float[] m_aRW = null;
-   static float[] m_aSaved = null;            // dangers appris aux courses précédentes, déjà oubliés de _KEEP
+   static float[] m_aSaved = null;            // dangers appris aux courses précédentes (0..1 par porte)
+   static float[] m_aSpeed = null;            // vitesse de passage permise à la porte i (part de la vitesse maxi)
+   static int m_nSpeedCuts = 0;               // vitesses baissées pendant cette course
    static boolean m_bFraction = false;        // Collision.fDistance : part du rayon (vrai) ou distance
    static int m_nLearnedRace = 0;             // murs appris pendant cette course
+   // bilan du dernier enregistrement (SaveRace), pour l'historique de l'entraînement (ModTraining)
+   static int m_nLastWalls = 0;
+   static int m_nLastDanger = 0;
+   static int m_nLastLessons = 0;
+   static int m_nLastSpeeds = 0;
+   static int m_nLastSpeedCuts = 0;
    // bilan
    static int m_nRays;
    static int m_nTrees;
@@ -78,9 +101,15 @@ class ModAIMap {
       m_aLW = new float[n];
       m_aRW = new float[n];
       m_nLearnedRace = 0;
-      m_sKey = m_sLevel + (RacerGame.GetCoreLogic().IsReverseTrack() ? "|inverse" : "") + "|" + n;
-      m_aSaved = LoadDanger(m_sKey, n);
+      m_nSpeedCuts = 0;
+      // v2 (2026-11-20) : « aller » / « retour ». Avant, CoreLogic.IsReverseTrack était lu au chargement, avant que
+      // PrepareTrackBeforeRace ne le règle : c'était le sens de la course précédente. Et la carte d'un circuit retour
+      // était calculée avant que le jeu ne le retourne : porte i de la carte = ancienne porte i, ailleurs sur la piste.
+      // Les lignes v1 (« |inverse| » ou sans sens) sont ignorées et retirées au prochain enregistrement.
+      m_sKey = m_sLevel + (m_bReversed ? "|retour|" : "|aller|") + n;
+      m_aSaved = LoadDanger(m_sKey + _DANGER_KEY, n);
       LoadWalls(m_sKey, n);
+      m_aSpeed = LoadSpeeds(m_sKey + _SPEED_KEY, n);
       m_nRays = m_nTrees = m_nObjects = m_nRelief = m_nNarrowed = m_nClosed = m_nBridges = 0;
 
       for (int i = 0; i < n; i++) {
@@ -109,7 +138,7 @@ class ModAIMap {
       int nWalls = 0;
       for (int i = 0; i < n; i++) {
          Combine(i);
-         if (m_aSaved[i] > 0.0F) {
+         if (m_aSaved[i] >= 0.1F) {
             nSaved++;
          }
 
@@ -426,13 +455,17 @@ class ModAIMap {
 
       // > 0 : l'obstacle est à droite de la voiture (la normale pointe vers la gauche de la porte)
       float s = -(nx * m_aRX[i] + nz * m_aRZ[i]) / h;
-      if (Math.abs(s) < 0.1F) {
-         return false; // choc pile de face : on ne sait pas de quel côté passer, les points dangereux s'en chargent
-      }
-
       float lat = (x - m_aCX[i]) * m_aRX[i] + (z - m_aCZ[i]) * m_aRZ[i];
       if (lat < -m_aLW[i] * 1.5F - 50.0F || lat > m_aRW[i] * 1.5F + 50.0F) {
          return false; // loin de cette porte (raccourci, voiture éjectée) : rien à apprendre ici
+      }
+
+      if (Math.abs(s) < 0.1F) {
+         // [mod] choc pile de face (arbre au milieu de deux chemins qui se rejoignent, rocher : Tropiques 1, Forêt 3
+         // retour) : l'obstacle est devant le milieu de la voiture. On passe du côté où le couloir a le plus de
+         // place, assez loin pour la demi-largeur de la voiture et l'obstacle (avant 2026-11-21 : rien appris)
+         s = lat - m_aLo[i] >= m_aHi[i] - lat ? 1.0F : -1.0F;
+         fStep *= 3.0F;
       }
 
       if (s > 0.0F) {
@@ -466,21 +499,89 @@ class ModAIMap {
       return true;
    }
 
-   // table des dangers d'une nouvelle course : ceux des courses d'avant, un peu oubliés
-   static float[] StartDanger(Track t) {
-      For(RacerModule.m_Mod, t);
-      int n = t != null ? t.m_TrackPoints.size() : 0;
-      float[] a = new float[n];
+   // RacerModule.ReverseTrack : le jeu vient de retourner les portes (courses retour), la carte calculée au
+   // chargement ne vaut plus rien ; elle est refaite au SetStartPos qui suit
+   static void OnReverse() {
+      m_bReversed = true;
+      m_Track = null;
+      m_aLo = null;
+   }
 
-      for (int i = 0; m_Track == t && m_aSaved != null && i < n && i < m_aSaved.length; i++) {
-         a[i] = m_aSaved[i];
+   // vitesse de passage permise à la porte i de ce circuit (part de la vitesse maxi), 1 si rien d'appris
+   static float Speed(Track t, int i) {
+      return m_Track == t && m_aSpeed != null && i >= 0 && i < m_aSpeed.length ? m_aSpeed[i] : 1.0F;
+   }
+
+   // une IA a tapé le décor alors qu'elle était passée à la porte i à fPass (part de la vitesse maxi) : on y passera
+   // plus lentement. Vrai si la limite a baissé.
+   static boolean CutSpeed(Track t, int i, float fPass, float fCut) {
+      if (m_Track != t || m_aSpeed == null || i < 0 || i >= m_aSpeed.length || fPass < _SPEED_FROM) {
+         return false;
+      }
+
+      float v = Math.max(_SPEED_MIN, fPass * fCut);
+      if (!(v < m_aSpeed[i] - 0.005F)) {
+         return false;
+      }
+
+      m_aSpeed[i] = v;
+      m_nSpeedCuts++;
+      return true;
+   }
+
+   // passage propre à la porte i (pas de choc jusqu'à deux portes plus loin) : la limite remonte un peu
+   static void RelaxSpeed(Track t, int i) {
+      if (m_Track == t && m_aSpeed != null && i >= 0 && i < m_aSpeed.length && m_aSpeed[i] < 1.0F) {
+         m_aSpeed[i] = Math.min(1.0F, m_aSpeed[i] + _SPEED_RELAX);
+      }
+   }
+
+   // « clé|vitesses=i:pourcent,… » : seulement les portes limitées
+   static float[] LoadSpeeds(String sKey, int n) {
+      float[] a = new float[n];
+      for (int i = 0; i < n; i++) {
+         a[i] = 1.0F;
+      }
+
+      String v = LoadLine(sKey);
+      int p = 0;
+      while (v != null && p < v.length()) {
+         int q = v.indexOf(',', p);
+         if (q < 0) {
+            q = v.length();
+         }
+
+         String e = v.substring(p, q).trim();
+         int c = e.indexOf(':');
+         if (c > 0) {
+            try {
+               int i = Integer.parseInt(e.substring(0, c));
+               if (i >= 0 && i < n) {
+                  a[i] = Math.max(_SPEED_MIN, Math.min(1.0F, Integer.parseInt(e.substring(c + 1)) / 100.0F));
+               }
+            } catch (NumberFormatException ex) {
+            }
+         }
+
+         p = q + 1;
       }
 
       return a;
    }
 
+   // table des dangers relevés pendant une nouvelle course (vide) ; ceux des courses d'avant : Saved
+   static float[] StartDanger(Track t) {
+      For(RacerModule.m_Mod, t);
+      return new float[t != null ? t.m_TrackPoints.size() : 0];
+   }
+
+   // danger appris aux courses d'avant à la porte i de ce circuit
+   static float Saved(Track t, int i) {
+      return m_Track == t && m_aSaved != null && i >= 0 && i < m_aSaved.length ? m_aSaved[i] : 0.0F;
+   }
+
    // --- aimap.dat : deux lignes par circuit et par sens ---
-   // « circuit|sens|portes=d0,d1,… » : dangers en centièmes
+   // « circuit|sens|portes|dangers=d0,d1,… » : dangers en centièmes (v2 ; « circuit|sens|portes=… » : v1, ignorée)
    // « circuit|sens|portes|murs=i:gauche:droite,… » : murs appris (décalages arrondis, x = rien de ce côté)
 
    static String LoadLine(String sKey) {
@@ -522,7 +623,7 @@ class ModAIMap {
          }
 
          try {
-            a[i] = Integer.parseInt(v.substring(p, q).trim()) / 100.0F * _KEEP;
+            a[i] = Integer.parseInt(v.substring(p, q).trim()) / 100.0F;
          } catch (NumberFormatException ex) {
             a[i] = 0.0F;
          }
@@ -578,15 +679,26 @@ class ModAIMap {
    }
 
    // fin de course (RacerGame.EndModule, arrivée ou Échap) : la mémoire de ce circuit dans aimap.dat.
-   // d : les dangers de la course, null si aucune IA améliorée n'a couru (on garde alors ceux d'avant)
+   // d : les dangers relevés pendant la course (VehicleAI.ModMarkDanger), null si aucune IA améliorée n'a couru (on
+   // garde alors ceux d'avant). Une porte sans incident redescend de 40 % par course, une porte où ça se passe mal à
+   // chaque course monte vers ce que la course en a relevé.
    static void SaveRace(float[] d) {
       if (m_sKey == null || m_aLo == null) {
          return;
       }
 
-      if (d == null || d.length != m_aLo.length) {
-         d = m_aSaved;
+      if (d != null && d.length == m_aLo.length) {
+         float[] m = new float[d.length];
+
+         for (int i = 0; i < d.length; i++) {
+            float old = m_aSaved != null && i < m_aSaved.length ? m_aSaved[i] : 0.0F;
+            m[i] = old * _KEEP + Math.min(1.0F, d[i]) * (1.0F - _KEEP);
+         }
+
+         m_aSaved = m;
       }
+
+      d = m_aSaved != null ? m_aSaved : new float[m_aLo.length];
 
       StringBuffer sb = new StringBuffer();
       int nDanger = 0;
@@ -598,7 +710,7 @@ class ModAIMap {
 
          int v = Math.round(d[i] * 100.0F);
          sb.append(v);
-         if (v > 0) {
+         if (v >= 10) {
             nDanger++;
          }
       }
@@ -619,8 +731,20 @@ class ModAIMap {
          }
       }
 
-      String kD = m_sKey;
+      StringBuffer sv = new StringBuffer();
+      int nSpeeds = 0;
+
+      for (int i = 0; m_aSpeed != null && i < m_aSpeed.length; i++) {
+         int pc = Math.round(m_aSpeed[i] * 100.0F);
+         if (pc < 100) {
+            sv.append(nSpeeds > 0 ? "," : "").append(i).append(':').append(pc);
+            nSpeeds++;
+         }
+      }
+
+      String kD = m_sKey + _DANGER_KEY;
       String kW = m_sKey + "|murs";
+      String kV = m_sKey + _SPEED_KEY;
       StringBuffer all = new StringBuffer();
 
       try {
@@ -631,7 +755,9 @@ class ModAIMap {
             for (String s = in.readLine(); s != null; s = in.readLine()) {
                int e = s.indexOf('=');
                String k = e > 0 ? s.substring(0, e) : "";
-               if (!k.equals(kD) && !k.equals(kW) && s.trim().length() > 0) {
+               // gardées : les autres circuits au format v2 (« |aller| » / « |retour| ») ; les lignes v1 sont retirées
+               boolean bV2 = k.indexOf("|aller|") > 0 || k.indexOf("|retour|") > 0;
+               if (bV2 && !k.equals(kD) && !k.equals(kW) && !k.equals(kV) && s.trim().length() > 0) {
                   all.append(s).append("\r\n");
                }
             }
@@ -644,17 +770,28 @@ class ModAIMap {
             all.append(kW).append('=').append(sw.toString()).append("\r\n");
          }
 
+         if (nSpeeds > 0) {
+            all.append(kV).append('=').append(sv.toString()).append("\r\n");
+         }
+
          FileWriter out = new FileWriter(_SAVE_FILE);
          out.write(all.toString());
          out.close();
+         m_nLastWalls = nWalls; // [mod] historique de l'entraînement (ModTraining)
+         m_nLastDanger = nDanger;
+         m_nLastLessons = m_nLearnedRace;
+         m_nLastSpeeds = nSpeeds;
+         m_nLastSpeedCuts = m_nSpeedCuts;
          GameObject.CrashLog(
             "[mod] IA carte " + m_sKey + " : memoire enregistree, murs appris a " + nWalls + " portes (" + m_nLearnedRace
-               + " lecons cette course), points dangereux " + nDanger + "\n"
+               + " lecons cette course), points dangereux " + nDanger + ", vitesses limitees a " + nSpeeds + " portes (" + m_nSpeedCuts
+               + " baissees cette course)\n"
          );
       } catch (Exception e) {
          GameObject.CrashLog("[mod] IA carte : ecriture de " + _SAVE_FILE + " impossible : " + e + "\n");
       }
 
       m_nLearnedRace = 0;
+      m_nSpeedCuts = 0;
    }
 }

@@ -3,6 +3,7 @@
 game_pristine/
 game_dev/
 game_dev_b/
+game_joueur/
 tools/
 build/
 # Sources décompilées : régénérables depuis game_pristine\java

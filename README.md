@@ -27,8 +27,10 @@ nouveaux bonus, une IA refaite et le jeu enfin à l'aise sur un PC moderne (1440
 - Les modes d'origine (aventure, course simple, extras, multijoueur local) restent là.
 
 **Gameplay**
-- **IA refaite** : trajectoires à la corde, freinage avant les virages, évitement, bonus utilisés à bon escient,
+- **IA refaite** : trajectoires à la corde, lâcher d'accélérateur avant les virages, évitement, bonus utilisés à bon escient,
   caractère propre à chaque IA. Difficulté réglable : d'origine, auto, facile, normal, difficile, expert.
+- **Les IA apprennent les circuits** : murs touchés et endroits dangereux sont gardés dans `aimap.dat` et servent
+  aux courses suivantes. L'installeur fournit une mémoire déjà entraînée à ceux qui n'en ont pas encore.
 - **Bonus** : la Fusée devient jouable, nouveau **Missile** qui vise le premier, tirage des bonus selon la place
   dans la course.
 - **Stats des animaux** (accélération, vitesse, virage) affichées à l'écran du choix et réglables dans
@@ -88,6 +90,9 @@ des fichiers touchés par chaque mod, diagnostic) est dans [notes/development.md
 ```powershell
 powershell -ExecutionPolicy Bypass -File mods\build.ps1 -Run      # compile, injecte dans game_dev, lance
 powershell -ExecutionPolicy Bypass -File mods\package.ps1         # fabrique build\PetRacerMod.zip
+powershell -ExecutionPolicy Bypass -File mods\package.ps1 -AiMap  # … en reprenant la mémoire des IA de game_dev
+powershell -ExecutionPolicy Bypass -File mods\entrainer-ia.ps1    # les IA courent seules sur tous les circuits (mémoire)
+python mods\rapport-ia.py --ouvrir                              # rapport HTML de l'entraînement (build\rapport_ia.html)
 python mods\installer\test_installer.py                           # essaie l'installeur sur une fausse copie du jeu
 python server\test_server.py                                      # vérifie le serveur sans le jeu
 ```

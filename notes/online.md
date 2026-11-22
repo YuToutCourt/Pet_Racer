@@ -431,7 +431,7 @@ Fait le 2026-11-20 (avec graphify), repris de la file d'attente de pet_soccer et
   (`--fill`) et qu'ils sont au moins 2. Hôte tiré au sort, places 0.. dans l'ordre. Le salon n'a pas de code à
   donner (`JOIN` refusé comme « code inconnu »).
 - Jeu de l'hôte (`ModNet.RankedHostFrame`) : circuit tiré au sort (les 31), tours et niveau des IA de
-  `Ranked(tours, niveau)` dans `Data\online.scr` (3 tours, normal), boîtes bonus, grille complétée à 6 par des IA.
+  `Ranked(tours, niveau)` dans `Data\online.scr` (3 tours, expert depuis le 2026-11-20 : la mémoire des IA est entraînée en expert), boîtes bonus, grille complétée à 6 par des IA.
   Lancement seul 4 s après l'arrivée dans le salon quand tous les joueurs sont là (20 s au plus pour un absent) ;
   rien après 45 s → salon quitté (« Partie rapide annulée »). Les invités sont prêts d'office et partent si rien ne
   se lance en 60 s. Ces réglages ne deviennent jamais ceux des salons à code (hôte remplacé, reprise de course).
@@ -506,12 +506,15 @@ python mods\installer\test_installer.py                                         
     plus est remis d'origine ou retiré.
   - adresse du serveur : `-Server`, sinon celle du paquet, sinon celle déjà réglée (mise à jour), sinon demandée
     (Entrée = plus tard).
+  - mémoire des IA : `Data\aimap_depart.dat` du paquet copiée en `aimap.dat` si le jeu n'en a pas (jamais écrasée,
+    laissée à la désinstallation ; `package.ps1 -AiMap` la reprend de `game_dev\aimap.dat`, voir `notes/ia.md`).
   - `-Uninstall` (`Desinstaller.bat`) : remet les originaux, retire le reste, efface `mod_backup`. Les `*.dat` de la
     racine (profils, `mods.dat`, `online.dat`, `grandprix.dat`) et `progress.cfg` ne sont jamais touchés.
 - `test_installer.py` : fausse copie dans `build\installer-test\Pet Racer\game` (exe, tout `java\` d'origine,
   données remplacées, fausses sauvegardes) ; installation (dossier parent donné), `java\` identique à
   `game_dev\java`, données, adresse, `mod_backup`, sauvegardes intactes ; mise à jour ; mise à jour vers un paquet
-  sans `ModNet.class` ni `RacerGame.class` ; désinstallation = dossier identique octet par octet à avant ;
+  sans `ModNet.class` ni `RacerGame.class` ; mémoire des IA de départ copiée, jamais écrasée, laissée à la
+  désinstallation ; désinstallation = dossier identique octet par octet à avant (hors `aimap.dat`) ;
   avertissement si un original a été modifié ; mauvais dossier refusé.
 
 ### Reste à faire pour jouer par Internet

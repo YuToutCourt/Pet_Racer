@@ -32,7 +32,8 @@ class ModAI {
    static int Mode() {
       // [mod] en ligne : la difficulté choisie par l'hôte du salon (ModNet.m_nAiMode), la même dans tous les jeux, y
       // compris chez celui qui reprend les IA si l'hôte part en course
-      int n = ModNet.IsRaceOnline() ? ModNet.m_nAiMode : ModOptions.m_nAiMode;
+      // [mod] entraînement des IA (ModTraining) : la difficulté de la passe en cours
+      int n = ModTraining.m_bRunning ? ModTraining.AiMode() : ModNet.IsRaceOnline() ? ModNet.m_nAiMode : ModOptions.m_nAiMode;
       return n >= 0 && n < _MODE_NAMES.length ? n : ModOptions._AI_AUTO;
    }
 
@@ -59,6 +60,10 @@ class ModAI {
    // élastique de l'IA améliorée : fraction de vitesse en plus (> 0) ou en moins (< 0).
    // fGapLaps > 0 : l'IA est derrière le premier humain de fGapLaps tours.
    static float CatchUp(float fGapLaps) {
+      if (ModTraining.m_bRunning) {
+         return 0.0F; // [mod] entraînement : pas d'humain, l'écart serait mesuré à la moyenne des IA
+      }
+
       int m = Mode();
       float a = fGapLaps < 0.0F ? -fGapLaps : fGapLaps;
       float t = Smooth((a - _CATCHUP_MIN_LAPS) / (_CATCHUP_FULL_LAPS - _CATCHUP_MIN_LAPS));

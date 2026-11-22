@@ -12,8 +12,10 @@
              server\server.py). Sans elle, l'installeur la demande à chaque ami.
   -Port    : port UDP du serveur (7778 par défaut)
   -NoBuild : ne relance pas mods\build.ps1 avant (les classes de build\classes sont prises telles quelles)
+  -AiMap   : copie d'abord la mémoire des IA de game_dev (aimap.dat, ce qu'elles ont appris sur chaque circuit) dans
+             mods\data\Data\aimap_depart.dat. L'installeur la donne aux amis qui n'ont pas encore d'aimap.dat.
 #>
-param([string]$Server = '', [int]$Port = 7778, [switch]$NoBuild)
+param([string]$Server = '', [int]$Port = 7778, [switch]$NoBuild, [switch]$AiMap)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -30,6 +32,15 @@ $enc      = [Text.Encoding]::GetEncoding(1252)   # les .scr sont en cp1252 + CRL
 $bom      = New-Object Text.UTF8Encoding($true)
 
 if ($Server -and $Server -notmatch '^[A-Za-z0-9.\-]+$') { throw "« $Server » n'est pas une adresse de serveur." }
+
+# Mémoire des IA de départ (notes\ia.md, « Carte des circuits ») : celle de game_dev, si demandé
+$aiMapSrc = Join-Path $DataSrc 'Data\aimap_depart.dat'
+if ($AiMap) {
+    $mine = Join-Path $Root 'game_dev\aimap.dat'
+    if (-not (Test-Path $mine)) { throw 'game_dev\aimap.dat n''existe pas : fais d''abord quelques courses avec des IA.' }
+    Copy-Item $mine $aiMapSrc -Force
+    Write-Host "[aimap] game_dev\aimap.dat -> mods\data\Data\aimap_depart.dat ($(@([IO.File]::ReadAllLines($aiMapSrc) | Where-Object { $_ }).Count) lignes)"
+}
 
 if (-not $NoBuild) {
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build.ps1') | Out-Null
@@ -100,5 +111,12 @@ if ($Server) {
     Write-Host "     serveur écrit dans le paquet : $Server, port UDP $Port"
 } else {
     Write-Host '     pas d''adresse de serveur dans le paquet (-Server) : l''installeur la demandera à chaque ami'
+}
+if (Test-Path $aiMapSrc) {
+    $lines = @([IO.File]::ReadAllLines($aiMapSrc) | Where-Object { $_ })
+    $walls = @($lines | Where-Object { $_ -match '\|murs=' }).Count
+    Write-Host "     mémoire des IA de départ : $($lines.Count) lignes, dont $walls avec des murs appris (du $((Get-Item $aiMapSrc).LastWriteTime.ToString('yyyy-MM-dd HH:mm')))"
+} else {
+    Write-Host '     pas de mémoire des IA de départ (-AiMap pour prendre celle de game_dev)'
 }
 exit 0

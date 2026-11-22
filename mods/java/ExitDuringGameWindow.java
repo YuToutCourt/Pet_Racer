@@ -42,7 +42,7 @@ public class ExitDuringGameWindow extends Window {
       this.m_Cursor.DeactivateCursor();
       this.Hide();
       if (!ModNet.IsRaceOnline()) {
-         this.GetModule().TimerSetSpeedUp(1.0F);
+         this.GetModule().TimerSetSpeedUp(ModTraining.TimeScale()); // [mod] entraînement des IA : temps accéléré
       }
    }
 

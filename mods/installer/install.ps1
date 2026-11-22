@@ -11,6 +11,7 @@
       java\, les données dans Data\ ;
     - écrit l'adresse du serveur dans Data\online.scr.
   Les sauvegardes (*.dat à la racine du jeu : profils, réglages du mod, compte en ligne) ne sont jamais touchées.
+  Seule exception : la mémoire des IA de départ (Data\aimap_depart.dat) est copiée en aimap.dat si le jeu n'en a pas.
   Relancer l'installation met le mod à jour.
 
   -Game      : dossier du jeu (celui de PetRacer.exe, ou le dossier « Pet Racer » qui le contient dans « game »).
@@ -266,6 +267,20 @@ foreach ($rel in $modFiles) {
 }
 [IO.File]::WriteAllLines($ListPath, [string[]]@($modFiles | Sort-Object -Unique))
 
+# Mémoire des IA (aimap.dat : ce qu'elles ont appris sur chaque circuit) : celle de départ du paquet, seulement si
+# ce jeu n'en a pas encore. Jamais écrasée ensuite, et laissée en place à la désinstallation (c'est une sauvegarde).
+$aiMap = Join-Path $GameDir 'aimap.dat'
+$aiMapStart = Join-Path $GameDir 'Data\aimap_depart.dat'
+$aiMapNote = $null
+if (Test-Path -LiteralPath $aiMapStart) {
+    if (Test-Path -LiteralPath $aiMap) {
+        $aiMapNote = 'Mémoire des IA : la tienne est gardée (aimap.dat).'
+    } else {
+        Copy-Item -LiteralPath $aiMapStart $aiMap
+        $aiMapNote = 'Mémoire des IA : celle de départ du mod est copiée (aimap.dat).'
+    }
+}
+
 # Adresse du serveur : celle demandée ici, sinon celle du paquet, sinon celle déjà réglée dans le jeu, sinon on la demande
 $onlinePath = Join-Path $GameDir 'Data\online.scr'
 $packed = Get-ServerLine $onlinePath
@@ -290,6 +305,7 @@ $classCount = @($modFiles | Where-Object { $_ -like 'java\*' }).Count
 Write-Host ''
 Write-Host "Mod installé (version en ligne $($modInfo['version']), paquet du $($modInfo['date'])) : $classCount classes, $($modFiles.Count - $classCount) fichiers de données." -ForegroundColor Green
 if ($dropped -gt 0) { Write-Host "$dropped fichier(s) de l'ancienne version du mod retirés." }
+if ($aiMapNote) { Write-Host $aiMapNote }
 if ($address) {
     Write-Host "Serveur en ligne : $address, port UDP $udpPort"
 } else {

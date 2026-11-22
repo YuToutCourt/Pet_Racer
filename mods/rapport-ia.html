@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--REFRESH-->
+<title>Entraînement des IA</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --surface-2: #f0efec;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --good: #006300;
+  --bad: #d03b3b;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #6250d6;
+  --danger: #eb6834;
+  --track: #ffffff;
+  --track-casing: rgba(11,11,11,0.55);
+  --hit: #ffffff;
+  --hit-ring: #0b0b0b;
+  --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --good: #0ca30c;
+    --bad: #e66767;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9;
+    --danger: #d95926;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface-1: #1a1a19; --surface-2: #232321;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --good: #0ca30c; --bad: #e66767;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9;
+  --danger: #d95926; --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--page); color: var(--text-primary);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1240px; margin: 0 auto; padding: 28px 16px 64px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 20px; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 36px 0 12px; }
+h3 { font-size: 16px; margin: 0; }
+.sub { color: var(--text-secondary); font-size: 14px; }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--surface-1); }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; }
+.tile, .card, .panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.tile { padding: 14px 16px; }
+.tile .label { font-size: 13px; color: var(--text-secondary); }
+.tile .value { font-size: 30px; font-weight: 650; line-height: 1.2; margin: 2px 0; }
+.tile .note { font-size: 13px; color: var(--text-secondary); }
+.delta-good { color: var(--good); font-weight: 600; }
+.delta-bad { color: var(--bad); font-weight: 600; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px; }
+.panel { padding: 14px 16px 10px; min-width: 0; }
+.panel .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+.panel .desc { font-size: 13px; color: var(--text-secondary); margin: 2px 0 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.key-rect { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.key-line { width: 14px; height: 2px; display: inline-block; border-radius: 1px; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 12px; }
+.card { overflow: hidden; display: flex; flex-direction: column; cursor: pointer; text-align: left; padding: 0;
+  font: inherit; color: inherit; transition: border-color .15s, transform .15s; }
+.card:hover, .card:focus-visible { border-color: var(--text-muted); transform: translateY(-1px); outline: none; }
+.card .map { aspect-ratio: 1 / 1; background: var(--surface-2); }
+.card .map svg, .big-map svg { width: 100%; height: 100%; display: block; }
+.card .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.card .title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.chip { font-size: 12px; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13px; }
+.kv dt { color: var(--text-secondary); }
+.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.spark { height: 64px; }
+.missing { margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
+.empty { padding: 40px 20px; text-align: center; color: var(--text-secondary); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: left; white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 600; position: sticky; top: 0; background: var(--surface-1); }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+details.panel summary { cursor: pointer; font-weight: 600; padding: 4px 0 8px; }
+.tooltip { position: fixed; z-index: 30; pointer-events: none; background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  max-width: 260px; display: none; }
+.tooltip .v { font-weight: 650; font-size: 15px; }
+.tooltip .l { color: var(--text-secondary); }
+.tooltip .row { display: flex; align-items: center; gap: 6px; }
+dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; width: min(1000px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px); background: var(--surface-1); color: var(--text-primary); }
+dialog::backdrop { background: rgba(0,0,0,.45); }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--grid);
+  position: sticky; top: 0; background: var(--surface-1); z-index: 2; }
+.dlg-body { padding: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 820px) { .dlg-body { grid-template-columns: 420px minmax(0, 1fr); } .dlg-wide { grid-column: 1 / -1; } }
+.big-map { aspect-ratio: 1 / 1; background: var(--surface-2); border-radius: 10px; overflow: hidden; }
+.close { font: inherit; font-size: 20px; line-height: 1; background: none; border: 1px solid var(--border); color: var(--text-primary);
+  border-radius: 8px; width: 34px; height: 34px; cursor: pointer; }
+.slider { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); margin-top: 10px; }
+.slider input { flex: 1; accent-color: var(--s1); }
+.map-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+.map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.run-summary { font-size: 14px; color: var(--text-secondary); }
+.run-summary b { color: var(--text-primary); }
+@media (max-width: 560px) { h1 { font-size: 23px; } .tile .value { font-size: 26px; } }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<div class="tooltip" id="tip" role="status"></div>
+<dialog id="dlg" aria-labelledby="dlg-title"></dialog>
+<script type="application/json" id="data">/*DATA*/null</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("data").textContent) || { races: [], tracks: [], empty: true };
+const SVG = "http://www.w3.org/2000/svg";
+// la couleur suit la difficulté, toujours la même (jamais l'ordre d'apparition)
+const MODES = ["normal", "expert", "difficile", "facile", "auto", "d'origine"];
+const MODE_VAR = { "normal": "--s1", "expert": "--s2", "difficile": "--s3", "facile": "--s4", "auto": "--s5", "d'origine": "--s6" };
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const modeColor = (m) => css(MODE_VAR[m] || "--text-muted");
+const raceById = new Map(D.races.map((r) => [r.i, r]));
+const trackByKey = new Map(D.tracks.map((t) => [t.key, t]));
+
+// ------------------------------------------------------------------ petits outils
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat(Infinity)) if (c != null && c !== false) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return e;
+}
+function s(tag, attrs, ...kids) {
+  const e = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v != null) e.setAttribute(k, v);
+  for (const c of kids.flat(Infinity)) if (c) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return e;
+}
+const nf1 = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const nf2 = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+const nf0 = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+// temps : en secondes sous une minute (57,45 s), en minutes au-delà (1:10,75)
+function fmtTime(t) {
+  if (t == null || !isFinite(t)) return "—";
+  t = Math.round(t * 100) / 100;
+  if (t < 60) return nf2.format(t) + " s";
+  const m = Math.floor(t / 60), sec = t - m * 60;
+  return m + ":" + (sec < 10 ? "0" : "") + nf2.format(sec);
+}
+function fmtDur(sec) {
+  sec = Math.round(sec || 0);
+  const hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60);
+  return hh > 0 ? hh + " h " + String(mm).padStart(2, "0") + " min" : mm + " min " + String(sec % 60).padStart(2, "0") + " s";
+}
+function pct(a, b) { return b ? (a - b) / b * 100 : 0; }
+function deltaSpan(from, to, lowerIsBetter = true, digits = 0) {
+  if (from == null || to == null || !from) return null;
+  const p = pct(to, from);
+  const good = lowerIsBetter ? p < 0 : p > 0;
+  const txt = (p > 0 ? "+" : p < 0 ? "−" : "±") + Math.abs(p).toFixed(digits).replace(".", ",") + " %";
+  return h("span", { class: Math.abs(p) < 0.5 ? "" : good ? "delta-good" : "delta-bad" }, txt);
+}
+function niceTicks(lo, hi, n = 4) {
+  if (hi <= lo) hi = lo + 1;
+  const raw = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map((k) => k * mag).find((k) => k >= raw) || 10 * mag;
+  const t0 = Math.floor(lo / step) * step, out = [];
+  for (let v = t0; v <= hi + step * 0.5; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+const tip = document.getElementById("tip");
+function showTip(ev, rows) {
+  // une fenêtre de détail ouverte (showModal) passe au-dessus de tout, z-index compris : la bulle doit être dedans
+  const host = dlg.open ? dlg : document.body;
+  if (tip.parentNode !== host) host.append(tip);
+  tip.replaceChildren(...rows);
+  tip.style.display = "block";
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+function tipRace(r, valueText, label) {
+  const t = trackByKey.get(r.key);
+  return [
+    h("div", { class: "v" }, valueText),
+    h("div", { class: "l" }, label),
+    h("div", { class: "row" }, h("span", { class: "key-line", style: "background:" + modeColor(r.mode) }), (t ? t.name : "circuit " + r.track) + " · " + r.mode),
+    h("div", { class: "l" }, "course " + r.i + " · " + (r.date || "")),
+  ];
+}
+
+// ------------------------------------------------------------------ blocs de passes (courses consécutives de même passe)
+function passBlocks(races) {
+  const out = [];
+  races.forEach((r, k) => {
+    const last = out[out.length - 1];
+    if (!last || last.pass !== r.pass || (k > 0 && r.race < races[k - 1].race)) out.push({ pass: r.pass, from: k, to: k, races: [r] });
+    else { last.to = k; last.races.push(r); }
+  });
+  return out;
+}
+
+// ------------------------------------------------------------------ graphique « une valeur par course »
+function raceChart(el, cfg) {
+  const races = D.races.filter((r) => cfg.value(r) != null);
+  el.replaceChildren();
+  if (!races.length) { el.append(h("div", { class: "empty" }, "Pas encore de données")); return; }
+  const W = Math.max(280, el.clientWidth), H = cfg.height || 230;
+  const m = { l: 46, r: 56, t: 12, b: 30 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vals = races.map(cfg.value);
+  let lo = cfg.zero ? 0 : Math.min(...vals), hi = Math.max(...vals);
+  if (!cfg.zero) { const pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad; }
+  const ticks = niceTicks(lo, hi, 4);
+  lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+  const band = iw / races.length;
+  const X = (k) => m.l + band * (k + 0.5);
+  const Y = (v) => m.t + ih - (v - lo) / (hi - lo) * ih;
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": cfg.title });
+  for (const t of ticks) {
+    svg.append(s("line", { x1: m.l, x2: m.l + iw, y1: Y(t), y2: Y(t), stroke: css("--grid"), "stroke-width": 1 }));
+    svg.append(s("text", { x: m.l - 8, y: Y(t) + 4, "text-anchor": "end", "font-size": 11, fill: css("--text-muted"), style: "font-variant-numeric:tabular-nums" }, cfg.tick(t)));
+  }
+  // séparateurs et moyennes de chaque passe
+  const blocks = passBlocks(races);
+  const overlay = [];
+  blocks.forEach((b, bi) => {
+    const x0 = m.l + band * b.from, x1 = m.l + band * (b.to + 1);
+    if (bi > 0) svg.append(s("line", { x1: x0, x2: x0, y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1 }));
+    svg.append(s("text", { x: x0 + 4, y: H - 10, "font-size": 11, fill: css("--text-secondary") }, (x1 - x0 > 54 ? "Passe " : "P") + b.pass));
+    const mean = b.races.reduce((a, r) => a + cfg.value(r), 0) / b.races.length;
+    // dessinées après les barres : par-dessus, avec un liseré couleur du fond
+    overlay.push(s("line", { x1: x0 + 2, x2: x1 - 2, y1: Y(mean), y2: Y(mean), stroke: css("--text-secondary"), "stroke-width": 1.5, "stroke-linecap": "round" }));
+    if (bi === blocks.length - 1 || x1 - x0 > 90) {
+      overlay.push(s("text", { x: bi === blocks.length - 1 ? m.l + iw + 6 : x1 - 4, y: Y(mean) - 5, "text-anchor": bi === blocks.length - 1 ? "start" : "end",
+        "font-size": 11, fill: css("--text-primary"), stroke: css("--surface-1"), "stroke-width": 3, "paint-order": "stroke", "stroke-linejoin": "round" },
+        "moy. " + cfg.tick(mean)));
+    }
+  });
+  svg.append(s("line", { x1: m.l, x2: m.l + iw, y1: m.t + ih, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1 }));
+  const marks = [];
+  races.forEach((r, k) => {
+    const v = cfg.value(r), c = modeColor(r.mode);
+    let mk;
+    if (cfg.kind === "bar") {
+      const bw = Math.max(1.5, Math.min(24, band - 2)), x = X(k) - bw / 2, y = Y(v), y0 = Y(Math.max(lo, 0));
+      const rad = Math.min(4, bw / 2, Math.max(0, y0 - y));
+      mk = s("path", { d: `M${x},${y0}V${y + rad}Q${x},${y} ${x + rad},${y}H${x + bw - rad}Q${x + bw},${y} ${x + bw},${y + rad}V${y0}Z`, fill: c });
+    } else {
+      mk = s("circle", { cx: X(k), cy: Y(v), r: races.length > 120 ? 3 : 4.5, fill: c, stroke: css("--surface-1"), "stroke-width": 2 });
+    }
+    svg.append(mk); marks.push(mk);
+  });
+  overlay.forEach((e) => svg.append(e));
+  // survol : la ligne verticale trouve la course la plus proche
+  const cross = s("line", { y1: m.t, y2: m.t + ih, stroke: css("--text-muted"), "stroke-width": 1, visibility: "hidden" });
+  svg.append(cross);
+  const hit = s("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent", tabindex: 0 });
+  let cur = -1;
+  const pick = (k, ev) => {
+    k = Math.max(0, Math.min(races.length - 1, k));
+    if (cur >= 0) marks[cur].style.opacity = "";
+    cur = k; marks.forEach((mk, j) => (mk.style.opacity = j === k ? "1" : "0.55"));
+    cross.setAttribute("x1", X(k)); cross.setAttribute("x2", X(k)); cross.setAttribute("visibility", "visible");
+    const r = races[k];
+    const box = svg.getBoundingClientRect();
+    showTip(ev || { clientX: box.left + X(k) * box.width / W, clientY: box.top + Y(cfg.value(r)) * box.height / H }, tipRace(r, cfg.fmt(cfg.value(r)), cfg.label));
+  };
+  hit.addEventListener("pointermove", (ev) => {
+    const box = svg.getBoundingClientRect();
+    pick(Math.floor(((ev.clientX - box.left) * W / box.width - m.l) / band), ev);
+  });
+  hit.addEventListener("click", () => { if (cur >= 0) openTrack(races[cur].key, races[cur].i); });
+  hit.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowRight") pick(cur + 1); else if (ev.key === "ArrowLeft") pick(cur < 0 ? races.length - 1 : cur - 1);
+    else if (ev.key === "Enter" && cur >= 0) openTrack(races[cur].key, races[cur].i); else return;
+    ev.preventDefault();
+  });
+  const leave = () => { cross.setAttribute("visibility", "hidden"); marks.forEach((mk) => (mk.style.opacity = "")); cur = -1; hideTip(); };
+  hit.addEventListener("pointerleave", leave); hit.addEventListener("blur", leave);
+  svg.append(hit);
+  el.append(svg);
+}
+
+// ------------------------------------------------------------------ carte d'un circuit
+function mapSvg(t, raceId, big) {
+  const mp = t.map;
+  if (!mp) return h("div", { class: "empty" }, "Carte inconnue");
+  const [vx, vy, vw, vh] = mp.vb;
+  const svg = s("svg", { viewBox: `${vx} ${vy} ${vw} ${vh}`, preserveAspectRatio: "xMidYMid slice", role: "img",
+    "aria-label": "Carte de " + t.name + " : piste des IA, points dangereux et chocs" });
+  if (mp.img) svg.append(s("image", { href: mp.img.src, x: mp.img.x, y: mp.img.y, width: mp.img.w, height: mp.img.h, preserveAspectRatio: "none" }));
+  const pts = mp.gates.map((p) => p.join(",")).join(" ");
+  svg.append(s("polygon", { points: pts, fill: "none", stroke: css("--track-casing"), "stroke-width": big ? 7 : 5, "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+  svg.append(s("polygon", { points: pts, fill: "none", stroke: css("--track"), "stroke-width": big ? 3 : 2, "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+  const unit = vw / (big ? 120 : 80);
+  const runIdx = t.runs.indexOf(raceId);
+  const race = raceById.get(raceId);
+  if (race && race.dangers.length === mp.gates.length) {
+    race.dangers.forEach((d, i) => {
+      if (d <= 0) return;
+      const c = s("circle", { cx: mp.gates[i][0], cy: mp.gates[i][1], r: unit * (0.6 + 1.6 * d / 100), fill: css("--danger"),
+        "fill-opacity": 0.35 + 0.55 * d / 100, stroke: css("--track-casing"), "stroke-width": 1, "vector-effect": "non-scaling-stroke" });
+      c.append(s("title", null, "porte " + i + " : danger " + d + " %"));
+      svg.append(c);
+    });
+  }
+  for (const p of (mp.hits[runIdx] || [])) {
+    svg.append(s("circle", { cx: p[0], cy: p[1], r: unit * 0.45, fill: css("--hit"), stroke: css("--hit-ring"), "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }));
+  }
+  const g0 = mp.gates[0];
+  if (g0) svg.append(s("rect", { x: g0[0] - unit, y: g0[1] - unit, width: unit * 2, height: unit * 2, rx: unit * 0.4, fill: css("--text-primary"),
+    stroke: css("--track"), "stroke-width": 2, "vector-effect": "non-scaling-stroke" }, s("title", null, "Départ")));
+  return svg;
+}
+
+// ------------------------------------------------------------------ petite courbe : temps du vainqueur, course après course
+function spark(el, t, big) {
+  const runs = t.runs.map((id) => raceById.get(id)).filter((r) => r && r.winTime != null);
+  el.replaceChildren();
+  if (runs.length < 1) { el.append(h("div", { class: "sub" }, "Pas encore de vainqueur")); return; }
+  const W = Math.max(200, el.clientWidth), H = big ? 150 : 64, m = { l: big ? 52 : 6, r: 8, t: 8, b: big ? 24 : 8 };
+  const vals = runs.map((r) => r.winTime);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (t.record) { lo = Math.min(lo, t.record.time); hi = Math.max(hi, t.record.time); }
+  const pad = (hi - lo) * 0.15 || 2; lo -= pad; hi += pad;
+  const X = (k) => m.l + (runs.length === 1 ? (W - m.l - m.r) / 2 : k * (W - m.l - m.r) / (runs.length - 1));
+  const Y = (v) => m.t + (H - m.t - m.b) - (v - lo) / (hi - lo) * (H - m.t - m.b);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Temps du vainqueur à chaque course sur " + t.name });
+  if (big) for (const tk of niceTicks(lo, hi, 3)) {
+    if (tk < lo || tk > hi) continue;
+    svg.append(s("line", { x1: m.l, x2: W - m.r, y1: Y(tk), y2: Y(tk), stroke: css("--grid"), "stroke-width": 1 }));
+    svg.append(s("text", { x: m.l - 6, y: Y(tk) + 4, "text-anchor": "end", "font-size": 11, fill: css("--text-muted") }, fmtTime(tk)));
+  }
+  if (t.record) {
+    svg.append(s("line", { x1: m.l, x2: W - m.r, y1: Y(t.record.time), y2: Y(t.record.time), stroke: css("--text-secondary"), "stroke-width": 1, "stroke-dasharray": "3 3" }));
+    if (big) svg.append(s("text", { x: W - m.r, y: Y(t.record.time) - 4, "text-anchor": "end", "font-size": 11, fill: css("--text-secondary") }, "record du joueur " + fmtTime(t.record.time)));
+  }
+  if (runs.length > 1) svg.append(s("polyline", { points: runs.map((r, k) => X(k) + "," + Y(r.winTime)).join(" "), fill: "none",
+    stroke: css("--text-muted"), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  runs.forEach((r, k) => {
+    const g = s("g", { tabindex: big ? 0 : null });
+    g.append(s("circle", { cx: X(k), cy: Y(r.winTime), r: 12, fill: "transparent" }));
+    g.append(s("circle", { cx: X(k), cy: Y(r.winTime), r: 4.5, fill: modeColor(r.mode), stroke: css("--surface-1"), "stroke-width": 2 }));
+    const show = (ev) => showTip(ev, [h("div", { class: "v" }, fmtTime(r.winTime)), h("div", { class: "l" }, "vainqueur : " + r.winner),
+      h("div", { class: "row" }, h("span", { class: "key-line", style: "background:" + modeColor(r.mode) }), "course n° " + (k + 1) + " ici · " + r.mode)]);
+    g.addEventListener("pointermove", show); g.addEventListener("pointerleave", hideTip);
+    g.addEventListener("focus", () => { const b = g.getBoundingClientRect(); show({ clientX: b.right, clientY: b.top }); });
+    g.addEventListener("blur", hideTip);
+    svg.append(g);
+  });
+  if (big && runs.length > 1) {
+    svg.append(s("text", { x: X(0), y: H - 6, "font-size": 11, fill: css("--text-muted") }, "1re"));
+    svg.append(s("text", { x: X(runs.length - 1), y: H - 6, "text-anchor": "end", "font-size": 11, fill: css("--text-muted") }, runs.length + "e course"));
+  }
+  el.append(svg);
+}
+
+// ------------------------------------------------------------------ statistiques d'un circuit
+function trackStats(t) {
+  const runs = t.runs.map((id) => raceById.get(id));
+  let best = null, bestLap = null;
+  runs.forEach((r, k) => {
+    for (const c of r.carsList) {
+      if (c.finished && c.time != null && (!best || c.time < best.time)) best = { time: c.time, animal: c.animal, run: k + 1, mode: r.mode };
+      if (c.best != null && (!bestLap || c.best < bestLap.time)) bestLap = { time: c.best, animal: c.animal, run: k + 1 };
+    }
+  });
+  return { runs, best, bestLap, first: runs[0], last: runs[runs.length - 1] };
+}
+
+function legendModes(modes, kind) {
+  return h("div", { class: "legend" }, modes.map((m) => h("span", null,
+    h("span", { class: kind === "bar" ? "key-rect" : "key-dot", style: "background:" + modeColor(m) }), m)));
+}
+
+// ------------------------------------------------------------------ fenêtre de détail d'un circuit
+const dlg = document.getElementById("dlg");
+function openTrack(key, raceId) {
+  const t = trackByKey.get(key);
+  if (!t) return;
+  const st = trackStats(t);
+  let sel = raceId && t.runs.includes(raceId) ? raceId : t.runs[t.runs.length - 1];
+  const mapBox = h("div", { class: "big-map" });
+  const summary = h("div", { class: "run-summary" });
+  const carsBox = h("div", { class: "scroll" });
+  const slider = h("input", { type: "range", min: 1, max: t.runs.length, value: t.runs.indexOf(sel) + 1, "aria-label": "Course à afficher" });
+  const sliderLabel = h("span");
+  const draw = () => {
+    const r = raceById.get(sel), k = t.runs.indexOf(sel) + 1;
+    sliderLabel.textContent = "Course " + k + " / " + t.runs.length;
+    mapBox.replaceChildren(mapSvg(t, sel, true));
+    summary.replaceChildren(
+      h("div", null, h("b", null, r.date), " · difficulté ", h("b", null, r.mode), " · ", r.laps + " tours"),
+      h("div", null, "Vainqueur : ", h("b", null, r.winner || "—"), " en ", h("b", null, fmtTime(r.winTime)), " · meilleur tour ", h("b", null, fmtTime(r.bestLap))),
+      h("div", null, "Chocs contre le décor : ", h("b", null, r.hits), " (", nf2.format(r.hitsPerLap), " par IA et par tour) · coincées ", h("b", null, r.stuck), " fois"),
+      h("div", null, "Mémoire après la course : ", h("b", null, r.walls), " portes avec un mur appris (", r.lessons, " leçons), ", h("b", null, r.danger), " points dangereux"),
+    );
+    const rows = r.carsList.map((c) => h("tr", null,
+      h("td", { class: "n" }, c.finished ? c.rank : "—"), h("td", null, c.animal), h("td", { class: "n" }, c.finished ? fmtTime(c.time) : "pas arrivée"),
+      h("td", { class: "n" }, fmtTime(c.best)), h("td", null, c.laps.map(fmtTime).join("  ")), h("td", { class: "n" }, c.hits),
+      h("td", { class: "n" }, c.stuck), h("td", { class: "n" }, nf1.format(c.off) + " s"), h("td", { class: "n" }, c.bonus)));
+    carsBox.replaceChildren(h("table", null, h("thead", null, h("tr", null, ["Place", "IA", "Temps", "Meilleur tour", "Tours", "Chocs", "Coincée", "Hors piste", "Bonus"]
+      .map((x, i) => h("th", { class: i === 1 || i === 4 ? "" : "n" }, x)))), h("tbody", null, rows)));
+  };
+  slider.addEventListener("input", () => { sel = t.runs[slider.value - 1]; draw(); });
+  const sparkBox = h("div", { class: "chart" });
+  const runRows = st.runs.map((r, k) => h("tr", { style: r.i === sel ? "font-weight:600" : null },
+    h("td", { class: "n" }, k + 1), h("td", null, r.date), h("td", null, h("span", { class: "key-dot", style: "background:" + modeColor(r.mode) }), " ", r.mode),
+    h("td", null, r.winner || "—"), h("td", { class: "n" }, fmtTime(r.winTime)), h("td", { class: "n" }, fmtTime(r.bestLap)),
+    h("td", { class: "n" }, r.hits), h("td", { class: "n" }, nf2.format(r.hitsPerLap)), h("td", { class: "n" }, r.stuck), h("td", { class: "n" }, r.walls)));
+  dlg.replaceChildren(
+    h("div", { class: "dlg-head" },
+      h("div", null, h("h3", { id: "dlg-title" }, t.name), h("div", { class: "sub" }, t.world + (t.reverse ? " · course retour" : "") + " · " + t.runs.length + " course(s)")),
+      h("button", { class: "close", onclick: () => dlg.close(), "aria-label": "Fermer" }, "×")),
+    h("div", { class: "dlg-body" },
+      h("div", null, mapBox,
+        h("div", { class: "slider" }, sliderLabel, slider),
+        h("div", { class: "map-legend" },
+          h("span", null, h("span", { class: "key-line", style: "background:" + css("--track") + ";box-shadow:0 0 0 1px " + css("--track-casing") }), "trajet des IA"),
+          h("span", null, h("span", { class: "key-dot", style: "background:" + css("--danger") }), "point dangereux (taille = danger)"),
+          h("span", null, h("span", { class: "key-dot", style: "background:" + css("--hit") + ";box-shadow:0 0 0 1.5px " + css("--hit-ring") }), "choc contre le décor"),
+          h("span", null, h("span", { class: "key-rect", style: "background:" + css("--text-primary") }), "départ")),
+        t.map && !t.map.img ? h("div", { class: "sub", style: "margin-top:6px" }, "Fond de carte non trouvé : piste seule.") : null),
+      h("div", null, summary, h("h3", { style: "margin:14px 0 6px" }, "Temps du vainqueur, course après course"), sparkBox,
+        h("div", { class: "kv", style: "margin-top:8px" },
+          h("dt", null, "Meilleur temps IA"), h("dd", null, st.best ? fmtTime(st.best.time) + " (" + st.best.animal + ", course " + st.best.run + ")" : "—"),
+          h("dt", null, "Meilleur tour IA"), h("dd", null, st.bestLap ? fmtTime(st.bestLap.time) + " (" + st.bestLap.animal + ")" : "—"),
+          h("dt", null, "Record du joueur"), h("dd", null, t.record ? fmtTime(t.record.time) + (t.record.name ? " (" + t.record.name + ")" : "") : "—"))),
+      h("div", { class: "dlg-wide" }, h("h3", { style: "margin-bottom:6px" }, "Les IA de cette course"), carsBox),
+      h("div", { class: "dlg-wide" }, h("h3", { style: "margin-bottom:6px" }, "Toutes les courses sur ce circuit"),
+        h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null,
+          ["N°", "Date", "Difficulté", "Vainqueur", "Temps", "Meilleur tour", "Chocs", "Chocs / IA / tour", "Coincées", "Murs appris"]
+            .map((x, i) => h("th", { class: [0, 4, 5, 6, 7, 8, 9].includes(i) ? "n" : "" }, x)))), h("tbody", null, runRows))))),
+  );
+  draw();
+  if (!dlg.open) dlg.showModal();
+  requestAnimationFrame(() => spark(sparkBox, t, true));
+}
+dlg.addEventListener("click", (ev) => { if (ev.target === dlg) dlg.close(); });
+dlg.addEventListener("close", hideTip);
+
+// ------------------------------------------------------------------ IA chrono (ModChrono, entrainer-ia.ps1 -Chrono)
+// Temps affichés = chronos officiels du jeu (lignes A). Une voiture (une autre à chaque course depuis le 2026-11-21)
+// roule avec le plan de base : son tour lancé moyen (tours 2 à n), d'une course à l'autre, montre l'évolution du plan
+// (comparable entre des courses de 3 et de 8 tours, ce que le temps de course n'est pas).
+const chronoByKey = new Map((D.chrono || []).map((t) => [t.key, t]));
+const ROLE_TXT = { base: "plan de base", verif: "revérification", essai: "essai", ancienne: "base d'avant (contrôle)" };
+const meanOf = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const baseRun = (p) => p.runs.find((c) => c.role === "base") || p.runs.find((c) => c.car === 0);
+const flyMean = (c) => (c && c.laps.length > 1 ? meanOf(c.laps.slice(1)) : null);
+// toi contre l'IA, au même calcul : qui est devant et de combien (court sur les fiches)
+function vsPlayer(rec, ai, short) {
+  if (!rec || !ai) return null;
+  const d = rec.time - ai.time;
+  const who = d <= 0 ? "toi" : "IA";
+  return h("span", { class: "sub", title: who + " devant de " + nf2.format(Math.abs(d)) + " s" },
+    short ? "· " + who + " +" + nf2.format(Math.abs(d)) : "(" + who + " devant de " + nf2.format(Math.abs(d)) + " s)");
+}
+
+function chronoStats(t) {
+  const lastP = t.points[t.points.length - 1];
+  const nLaps = lastP.laps || 3;
+  let best1 = null, bestFly = null, bestTotal = null, best3 = null;
+  const base = [], bestSoFar = [];
+  t.points.forEach((p) => {
+    for (const c of p.runs) {
+      // même calcul que le record du jeu (course ÷ tours, départ compris), sur une course de 3 tours : du feu vert
+      // au 3e passage de la ligne (time = du feu vert à l'arrivée, laps = d'un passage de la ligne au suivant)
+      if (c.time && c.laps.length >= 3 && c.laps.every(Boolean)) {
+        const t3 = (c.time - c.laps.slice(3).reduce((a, x) => a + x, 0)) / 3;
+        if (!best3 || t3 < best3.time) best3 = { time: t3, n: p.n, role: c.role };
+      }
+      if (c.laps[0] && (!best1 || c.laps[0] < best1.time)) best1 = { time: c.laps[0], n: p.n, role: c.role };
+      c.laps.forEach((x, j) => { if (j > 0 && x && (!bestFly || x < bestFly.time)) bestFly = { time: x, n: p.n, role: c.role, lap: j + 1 }; });
+      // course entière : seulement les courses du nombre de tours actuel
+      if (c.time && p.laps === nLaps && (!bestTotal || c.time < bestTotal.time)) bestTotal = { time: c.time, n: p.n, role: c.role, laps: c.laps };
+    }
+    base.push(flyMean(baseRun(p)));
+    bestSoFar.push(bestFly ? bestFly.time : null);
+  });
+  // moyenne glissante sur 5 courses : une course seule dépend beaucoup des chocs
+  const avg = base.map((_, k) => meanOf(base.slice(Math.max(0, k - 4), k + 1).filter((v) => v != null)));
+  const valid = base.filter((v) => v != null);
+  return { nLaps, best1, bestFly, bestLap: bestFly, bestTotal, best3, base, avg, bestSoFar, first: meanOf(valid.slice(0, 5)), last: meanOf(valid.slice(-5)),
+    enough: valid.length >= 6, gen: lastP.gen, tried: lastP.tried, real: t.points.reduce((a, p) => a + (p.real || 0), 0), lastP };
+}
+
+// courbe d'un circuit : tour lancé moyen du plan de base (points), moyenne sur 5 courses (trait), meilleur tour lancé
+// jusque-là (pointillé), améliorations adoptées (losanges), changement du nombre de tours (trait vertical)
+function chronoChart(el, t, big) {
+  const st = chronoStats(t);
+  el.replaceChildren();
+  if (!st.base.some((v) => v != null)) { el.append(h("div", { class: "sub" }, "Pas encore de course finie")); return; }
+  const n = t.points.length;
+  const W = Math.max(200, el.clientWidth), H = big ? 240 : 64;
+  const m = big ? { l: 62, r: 12, t: 12, b: 28 } : { l: 6, r: 8, t: 8, b: 8 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vals = [...st.base, ...st.bestSoFar].filter((v) => v != null);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad;
+  const X = (k) => m.l + (n === 1 ? iw / 2 : k * iw / (n - 1));
+  const Y = (v) => m.t + ih - (v - lo) / (hi - lo) * ih;
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Tour lancé moyen du plan de base, course après course, sur " + t.name });
+  if (big) {
+    for (const tk of niceTicks(lo, hi, 4)) {
+      if (tk < lo || tk > hi) continue;
+      svg.append(s("line", { x1: m.l, x2: m.l + iw, y1: Y(tk), y2: Y(tk), stroke: css("--grid"), "stroke-width": 1 }));
+      svg.append(s("text", { x: m.l - 8, y: Y(tk) + 4, "text-anchor": "end", "font-size": 11, fill: css("--text-muted"), style: "font-variant-numeric:tabular-nums" }, fmtTime(tk)));
+    }
+    svg.append(s("line", { x1: m.l, x2: m.l + iw, y1: m.t + ih, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1 }));
+    t.points.forEach((p, k) => {
+      if (k === 0 || p.laps === t.points[k - 1].laps) return;
+      svg.append(s("line", { x1: X(k), x2: X(k), y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, "stroke-dasharray": "2 3" }));
+      svg.append(s("text", { x: X(k) + 4, y: m.t + 10, "font-size": 11, fill: css("--text-secondary") }, p.laps + " tours"));
+    });
+  }
+  const rec = st.bestSoFar.map((v, k) => (v != null ? X(k) + "," + Y(v) : null)).filter(Boolean);
+  if (rec.length > 1) svg.append(s("polyline", { points: rec.join(" "), fill: "none", stroke: css("--text-secondary"), "stroke-width": 1.5,
+    "stroke-dasharray": "4 3", "stroke-linejoin": "round" }));
+  st.base.forEach((v, k) => { if (v != null) svg.append(s("circle", { cx: X(k), cy: Y(v), r: big ? 3 : 2, fill: css("--text-muted") })); });
+  const line = st.avg.map((v, k) => (v != null ? X(k) + "," + Y(v) : null)).filter(Boolean);
+  if (line.length > 1) svg.append(s("polyline", { points: line.join(" "), fill: "none", stroke: css("--s1"), "stroke-width": big ? 2.5 : 2,
+    "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  t.points.forEach((p, k) => {
+    if (k === 0 || p.gen <= t.points[k - 1].gen || st.avg[k] == null) return;
+    const d = big ? 6 : 4;
+    svg.append(s("path", { d: `M${X(k)},${Y(st.avg[k]) - d}l${d},${d}l${-d},${d}l${-d},${-d}z`, fill: css("--good"), stroke: css("--surface-1"), "stroke-width": 1.5 }));
+  });
+  if (big) {
+    if (n > 1) {
+      svg.append(s("text", { x: X(0), y: H - 8, "font-size": 11, fill: css("--text-muted") }, "1re course"));
+      svg.append(s("text", { x: X(n - 1), y: H - 8, "text-anchor": "end", "font-size": 11, fill: css("--text-muted") }, t.points[n - 1].n + "e"));
+    }
+    const cross = s("line", { y1: m.t, y2: m.t + ih, stroke: css("--text-muted"), "stroke-width": 1, visibility: "hidden" });
+    svg.append(cross);
+    const hit = s("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent", tabindex: 0 });
+    let cur = -1;
+    const pick = (k, ev) => {
+      k = Math.max(0, Math.min(n - 1, k)); cur = k;
+      const p = t.points[k], b = baseRun(p) || { laps: [] };
+      cross.setAttribute("x1", X(k)); cross.setAttribute("x2", X(k)); cross.setAttribute("visibility", "visible");
+      const box = svg.getBoundingClientRect();
+      showTip(ev || { clientX: box.left + X(k) * box.width / W, clientY: box.top + m.t * box.height / H }, [
+        h("div", { class: "v" }, st.base[k] != null ? fmtTime(st.base[k]) + " par tour lancé" : "pas de tour lancé"),
+        h("div", { class: "l" }, "plan de base (voiture " + b.car + "), course chrono " + p.n + " · " + p.date),
+        h("div", { class: "l" }, "tours : " + (b.laps.length ? b.laps.map(fmtTime).join(" · ") : "—") + (b.time ? " · course " + fmtTime(b.time) : "")),
+        h("div", { class: "l" }, "moyenne sur 5 courses : " + fmtTime(st.avg[k]) + " · meilleur tour lancé : " + fmtTime(st.bestSoFar[k])),
+        h("div", { class: "l" }, p.decision.length > 170 ? p.decision.slice(0, 170) + "…" : p.decision)]);
+    };
+    hit.addEventListener("pointermove", (ev) => { const box = svg.getBoundingClientRect(); pick(Math.round(((ev.clientX - box.left) * W / box.width - m.l) / (iw / Math.max(1, n - 1))), ev); });
+    hit.addEventListener("keydown", (ev) => {
+      if (ev.key === "ArrowRight") pick(cur + 1); else if (ev.key === "ArrowLeft") pick(cur < 0 ? n - 1 : cur - 1); else return;
+      ev.preventDefault();
+    });
+    const leave = () => { cross.setAttribute("visibility", "hidden"); cur = -1; hideTip(); };
+    hit.addEventListener("pointerleave", leave); hit.addEventListener("blur", leave);
+    svg.append(hit);
+  }
+  el.append(svg);
+}
+
+// tous les circuits : course du plan de base (moyenne sur 5 courses) en % de ses 5 premières courses
+function chronoOverview(el) {
+  el.replaceChildren();
+  const series = D.chrono.map((t) => {
+    const st = chronoStats(t);
+    return { t, vals: st.first ? st.avg.map((v) => (v != null ? v / st.first * 100 : null)) : [] };
+  }).filter((x) => x.vals.filter((v) => v != null).length > 1);
+  if (!series.length) { el.append(h("div", { class: "empty" }, "La courbe apparaît après 2 courses sur un circuit")); return; }
+  const n = Math.max(...series.map((x) => x.vals.length));
+  const W = Math.max(280, el.clientWidth), H = 240, m = { l: 50, r: 14, t: 12, b: 28 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const all = series.flatMap((x) => x.vals).filter((v) => v != null).concat([100]);
+  let lo = Math.min(...all), hi = Math.max(...all);
+  const pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad;
+  const X = (k) => m.l + (n === 1 ? iw / 2 : k * iw / (n - 1));
+  const Y = (v) => m.t + ih - (v - lo) / (hi - lo) * ih;
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Évolution des plans de base de tous les circuits" });
+  for (const tk of niceTicks(lo, hi, 4)) {
+    if (tk < lo || tk > hi) continue;
+    svg.append(s("line", { x1: m.l, x2: m.l + iw, y1: Y(tk), y2: Y(tk), stroke: css("--grid"), "stroke-width": 1 }));
+    svg.append(s("text", { x: m.l - 8, y: Y(tk) + 4, "text-anchor": "end", "font-size": 11, fill: css("--text-muted") }, nf0.format(tk) + " %"));
+  }
+  svg.append(s("line", { x1: m.l, x2: m.l + iw, y1: Y(100), y2: Y(100), stroke: css("--text-secondary"), "stroke-width": 1, "stroke-dasharray": "3 3" }));
+  svg.append(s("line", { x1: m.l, x2: m.l + iw, y1: m.t + ih, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1 }));
+  const pts = (vals) => vals.map((v, k) => (v != null ? X(k) + "," + Y(v) : null)).filter(Boolean).join(" ");
+  const lines = series.map((x) => {
+    const pl = s("polyline", { points: pts(x.vals), fill: "none", stroke: css(series.length === 1 ? "--s1" : "--text-muted"), "stroke-width": series.length === 1 ? 2.5 : 1.5,
+      "stroke-opacity": series.length === 1 ? 1 : 0.55, "stroke-linejoin": "round", "stroke-linecap": "round" });
+    svg.append(pl);
+    return pl;
+  });
+  let meanVals = null;
+  if (series.length > 1) {
+    meanVals = Array.from({ length: n }, (_, k) => meanOf(series.map((x) => x.vals[k]).filter((v) => v != null)));
+    svg.append(s("polyline", { points: pts(meanVals), fill: "none", stroke: css("--s1"), "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  }
+  svg.append(s("text", { x: X(0), y: H - 8, "font-size": 11, fill: css("--text-muted") }, "1re course sur le circuit"));
+  svg.append(s("text", { x: X(n - 1), y: H - 8, "text-anchor": "end", "font-size": 11, fill: css("--text-muted") }, n + "e"));
+  // survol : le circuit le plus proche du pointeur
+  const hit = s("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" });
+  let hl = -1;
+  hit.addEventListener("pointermove", (ev) => {
+    const box = svg.getBoundingClientRect();
+    const k = Math.max(0, Math.min(n - 1, Math.round(((ev.clientX - box.left) * W / box.width - m.l) / (iw / Math.max(1, n - 1)))));
+    const y = (ev.clientY - box.top) * H / box.height;
+    let bi = -1, bd = Infinity;
+    series.forEach((x, i) => { const v = x.vals[k]; if (v != null && Math.abs(Y(v) - y) < bd) { bd = Math.abs(Y(v) - y); bi = i; } });
+    if (bi !== hl && series.length > 1) {
+      lines.forEach((l, i) => { l.setAttribute("stroke", css(i === bi ? "--s2" : "--text-muted")); l.setAttribute("stroke-opacity", i === bi ? 1 : 0.35); l.setAttribute("stroke-width", i === bi ? 2.5 : 1.5); });
+      if (bi >= 0) svg.insertBefore(lines[bi], hit);
+      hl = bi;
+    }
+    if (bi < 0) { hideTip(); return; }
+    const x = series[bi];
+    showTip(ev, [h("div", { class: "v" }, nf1.format(x.vals[k]) + " %"),
+      h("div", { class: "l" }, x.t.name + " · " + x.t.animal + " · " + (k + 1) + "e course"),
+      meanVals ? h("div", { class: "l" }, "moyenne des circuits : " + nf1.format(meanVals[k]) + " %") : null,
+      h("div", { class: "l" }, "clic : détail du circuit")]);
+  });
+  hit.addEventListener("pointerleave", () => {
+    hideTip(); hl = -1;
+    lines.forEach((l) => { l.setAttribute("stroke", css(series.length === 1 ? "--s1" : "--text-muted")); l.setAttribute("stroke-opacity", series.length === 1 ? 1 : 0.55); l.setAttribute("stroke-width", series.length === 1 ? 2.5 : 1.5); });
+  });
+  hit.addEventListener("click", () => { const x = series[hl >= 0 ? hl : 0]; if (x) openChrono(x.t.key); });
+  svg.append(hit);
+  el.append(svg);
+}
+
+// carte : milieu des portes, trajectoire du plan de base, vitesses limitées (orange) ; en grand, chocs des 10 dernières courses
+function chronoMap(t, big) {
+  const mp = t.map;
+  if (!mp) return h("div", { class: "empty" }, "Carte inconnue");
+  const [vx, vy, vw, vh] = mp.vb;
+  const unit = vw / (big ? 120 : 80);
+  const svg = s("svg", { viewBox: `${vx} ${vy} ${vw} ${vh}`, preserveAspectRatio: "xMidYMid slice", role: "img",
+    "aria-label": "Carte de " + t.name + " : trajectoire du plan de base" });
+  if (mp.img) svg.append(s("image", { href: mp.img.src, x: mp.img.x, y: mp.img.y, width: mp.img.w, height: mp.img.h, preserveAspectRatio: "none" }));
+  const gp = mp.gates.map((p) => p.join(",")).join(" ");
+  svg.append(s("polygon", { points: gp, fill: "none", stroke: css("--track"), "stroke-width": big ? 2 : 1.5, "stroke-opacity": 0.7, "stroke-dasharray": "4 4",
+    "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+  if (mp.line) {
+    const lp = mp.line.map((p) => p.join(",")).join(" ");
+    svg.append(s("polygon", { points: lp, fill: "none", stroke: css("--track-casing"), "stroke-width": big ? 6 : 5, "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+    svg.append(s("polygon", { points: lp, fill: "none", stroke: css("--s1"), "stroke-width": big ? 3 : 2.5, "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+    mp.line.forEach((p, i) => {
+      const pl = t.plan[i];
+      if (!pl || pl[0] >= 100) return;
+      const c = s("circle", { cx: p[0], cy: p[1], r: unit * (0.6 + 2.0 * (100 - pl[0]) / 50), fill: css("--danger"), "fill-opacity": 0.8,
+        stroke: css("--track-casing"), "stroke-width": 1, "vector-effect": "non-scaling-stroke" });
+      c.append(s("title", null, "porte " + i + " : vitesse limitée à " + pl[0] + " % · prudence x" + nf2.format(pl[1] / 100)));
+      svg.append(c);
+    });
+  }
+  if (big) for (const p of (mp.hits || []).flat()) {
+    svg.append(s("circle", { cx: p[0], cy: p[1], r: unit * 0.4, fill: css("--hit"), stroke: css("--hit-ring"), "stroke-width": 1.2, "vector-effect": "non-scaling-stroke" }));
+  }
+  // bornes (ModChrono) : la ligne du plan contourne ces endroits
+  for (const b of (mp.bornes || [])) {
+    const r = s("rect", { x: b[0] - unit * 0.7, y: b[1] - unit * 0.7, width: unit * 1.4, height: unit * 1.4, fill: "none", stroke: css("--text-primary"),
+      "stroke-width": big ? 2 : 1.5, transform: `rotate(45 ${b[0]} ${b[1]})`, "vector-effect": "non-scaling-stroke" });
+    r.append(s("title", null, "borne avant la porte " + b[2] + " : " + b[3] + " chocs ; la ligne du plan passe à côté"));
+    svg.append(r);
+  }
+  const g0 = mp.gates[0];
+  if (g0) svg.append(s("rect", { x: g0[0] - unit, y: g0[1] - unit, width: unit * 2, height: unit * 2, rx: unit * 0.4, fill: css("--text-primary"),
+    stroke: css("--track"), "stroke-width": 2, "vector-effect": "non-scaling-stroke" }, s("title", null, "Départ")));
+  return svg;
+}
+
+function chronoLapKV(st, withWho) {
+  const who = (b) => (withWho && b ? " · course " + b.n + ", " + (ROLE_TXT[b.role] || b.role) : "");
+  const out = [];
+  out.push(h("dt", null, withWho ? "Meilleur tour 1 (départ arrêté)" : "Tour 1 (départ)"), h("dd", null, st.best1 ? fmtTime(st.best1.time) + who(st.best1) : "—"));
+  out.push(h("dt", null, "Meilleur tour lancé"), h("dd", null, st.bestFly ? fmtTime(st.bestFly.time) + who(st.bestFly) + (withWho ? " (tour " + st.bestFly.lap + ")" : "") : "—"));
+  out.push(h("dt", null, withWho ? "Meilleure course (" + st.nLaps + " tours)" : "Course (" + st.nLaps + " tours)"),
+    h("dd", null, st.bestTotal ? fmtTime(st.bestTotal.time) + (withWho ? " · course " + st.bestTotal.n + ", " + (ROLE_TXT[st.bestTotal.role] || st.bestTotal.role) : "") : "—"));
+  return out;
+}
+
+// fenêtre de détail d'un circuit chrono
+function openChrono(key) {
+  const t = chronoByKey.get(key);
+  if (!t) return;
+  const st = chronoStats(t);
+  const chartBox = h("div", { class: "chart" });
+  const rec = t.playerRecord;
+  const rows = t.points.slice().reverse().map((p) => {
+    const b = baseRun(p) || { laps: [], time: null, hits: 0, car: "?" };
+    const fly = p.runs.flatMap((c) => c.laps.slice(1)).filter(Boolean);
+    return h("tr", { title: "plan de base, tous les tours : " + b.laps.map(fmtTime).join(" · ") }, h("td", { class: "n" }, p.n), h("td", null, p.date),
+      h("td", { class: "n" }, p.laps), h("td", { class: "n" }, b.car), h("td", { class: "n" }, fmtTime(b.laps[0])),
+      h("td", { class: "n" }, fmtTime(flyMean(b))), h("td", { class: "n" }, b.laps.length > 1 ? fmtTime(Math.min(...b.laps.slice(1))) : "—"),
+      h("td", { class: "n" }, b.time ? fmtTime(b.time) : "—"), h("td", { class: "n" }, b.hits),
+      h("td", { class: "n" }, fly.length ? fmtTime(Math.min(...fly)) : "—"),
+      h("td", { style: "white-space:normal;min-width:280px" }, p.decision));
+  });
+  const legendKey = (style, txt) => h("span", null, h("span", { class: style[0], style: style[1] }), txt);
+  dlg.replaceChildren(
+    h("div", { class: "dlg-head" },
+      h("div", null, h("h3", { id: "dlg-title" }, t.name + " · IA chrono"), h("div", { class: "sub" }, t.world + (t.reverse ? " · course retour" : "") + " · 6 × " + t.animal + " · " + t.points.length + " course(s) · " + fmtDur(st.real) + " de course")),
+      h("button", { class: "close", onclick: () => dlg.close(), "aria-label": "Fermer" }, "×")),
+    h("div", { class: "dlg-body" },
+      h("div", null, h("div", { class: "big-map" }, chronoMap(t, true)),
+        h("div", { class: "map-legend" },
+          legendKey(["key-line", "background:" + css("--s1")], "trajectoire du plan de base"),
+          legendKey(["key-line", "background:" + css("--track") + ";box-shadow:0 0 0 1px " + css("--track-casing")], "milieu des portes"),
+          legendKey(["key-dot", "background:" + css("--danger")], "vitesse limitée (taille = limite)"),
+          legendKey(["key-dot", "background:" + css("--hit") + ";box-shadow:0 0 0 1.5px " + css("--hit-ring")], "chocs (10 dernières courses)"))),
+      h("div", null,
+        h("dl", { class: "kv" }, chronoLapKV(st, true),
+          h("dt", null, "Ton record (course ÷ tours)"), h("dd", null, rec ? fmtTime(rec.time) + (rec.name ? " (" + rec.name + ")" : "") : "—"),
+          h("dt", null, "IA, même calcul sur 3 tours"), h("dd", null, st.best3 ? [fmtTime(st.best3.time) + " · course " + st.best3.n + " ", vsPlayer(rec, st.best3)] : "—"),
+          h("dt", null, "Plan de base, tour lancé"), h("dd", null, st.last ? [fmtTime(st.last) + " ", st.enough ? ["(au départ " + fmtTime(st.first) + " ", deltaSpan(st.first, st.last, true, 1), ")"] : "(moyenne des 5 dernières)"] : "—"),
+          h("dt", null, "Améliorations adoptées"), h("dd", null, st.gen + " sur " + st.tried + " essais"),
+          h("dt", null, "Bruit d'une mesure"), h("dd", null, st.lastP.noise ? nf2.format(st.lastP.noise) + " s par tour" : "—")),
+        h("h3", { style: "margin:14px 0 4px" }, "Tour lancé moyen du plan de base, d'une course à l'autre"),
+        h("div", { class: "legend", style: "margin-bottom:4px" },
+          legendKey(["key-dot", "background:" + css("--text-muted")], "une course (moyenne des tours 2 à n)"),
+          legendKey(["key-line", "background:" + css("--s1")], "moyenne sur 5 courses"),
+          legendKey(["key-line", "background:" + css("--text-secondary")], "meilleur tour lancé (pointillé)"),
+          legendKey(["key-rect", "background:" + css("--good") + ";transform:rotate(45deg)"], "amélioration adoptée")),
+        chartBox),
+      h("div", { class: "dlg-wide" }, h("h3", { style: "margin-bottom:6px" }, "Toutes les courses chrono (temps de la voiture au plan de base ; survol d'une ligne : tous ses tours)"),
+        h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null,
+          ["N°", "Date", "Tours", "Voiture", "Tour 1", "Tour lancé (moy.)", "Meilleur tour lancé", "Course", "Chocs", "Meilleur tour lancé (6 voitures)", "Décision"]
+            .map((x, i) => h("th", { class: i === 1 || i === 10 ? "" : "n" }, x)))), h("tbody", null, rows))))),
+  );
+  if (!dlg.open) dlg.showModal();
+  requestAnimationFrame(() => chronoChart(chartBox, t, true));
+}
+
+let chronoDraws = [];
+function renderChrono(app) {
+  chronoDraws = [];
+  const all = D.chrono.map((t) => ({ t, st: chronoStats(t) }));
+  const pts = D.chrono.flatMap((t) => t.points);
+  const lastP = pts.reduce((a, p) => (!a || p.date > a.date ? p : a), null);
+  const live = !!document.querySelector('meta[http-equiv="refresh"]');
+  const gains = all.filter((x) => x.st.enough).map((x) => x.st.last / x.st.first);
+  const gainMean = meanOf(gains);
+  const vsRec = all.filter((x) => x.t.playerRecord && x.st.best3).map((x) => x.st.best3.time / x.t.playerRecord.time);
+  const recMean = meanOf(vsRec);
+  const gen = all.reduce((a, x) => a + x.st.gen, 0), tried = all.reduce((a, x) => a + x.st.tried, 0);
+  const real = all.reduce((a, x) => a + x.st.real, 0);
+  const tracks = new Set(D.chrono.map((t) => t.track)).size;
+  const tile = (label, value, note) => h("div", { class: "tile" }, h("div", { class: "label" }, label), h("div", { class: "value" }, value), h("div", { class: "note" }, note));
+  app.append(h("h2", null, "IA chrono"),
+    h("div", { class: "sub", style: "margin:-6px 0 12px" }, "6 IA du même animal, traversables et sans hasard, cherchent le meilleur plan de course (trajectoire et vitesse à chaque porte) par évolution. Temps = chronos officiels du jeu. Mémoire : game_dev\\aichrono.dat."),
+    h("section", { class: "tiles" },
+      tile("Courses chrono", pts.length, tracks + " circuit" + (tracks > 1 ? "s" : "") + (live && lastP && lastP.total > lastP.race ? " · en cours : " + lastP.race + " / " + lastP.total : "")),
+      tile("Temps de course", fmtDur(real), "réel, sans les chargements"),
+      tile("Plans de base", gainMean != null ? deltaSpan(1, gainMean, true, 1) : "—",
+        gainMean != null ? "tour lancé moyen : 5 dernières courses par rapport aux 5 premières, moyenne sur " + gains.length + " circuit" + (gains.length > 1 ? "s" : "") : "comparaison après 6 courses sur un circuit"),
+      tile("Améliorations adoptées", gen, "sur " + tried + " essais"),
+      tile("IA / ton record", recMean != null ? deltaSpan(1, recMean, true, 1) : "—",
+        recMean != null ? "même calcul que le record du jeu (course de 3 tours ÷ 3, départ compris), moyenne sur " + vsRec.length + " circuit" + (vsRec.length > 1 ? "s" : "") + " ; négatif : l'IA est plus rapide" : "pas de record joueur sur ces circuits")));
+  const ov = h("div", { class: "chart" });
+  chronoDraws.push(() => chronoOverview(ov));
+  app.append(h("h2", null, "Évolution des plans"), h("div", { class: "panel" },
+    h("div", { class: "head" }, h("h3", null, "Tour lancé du plan de base, en % de ses 5 premières courses"),
+      h("div", { class: "legend" }, D.chrono.length > 1 ? [h("span", null, h("span", { class: "key-line", style: "background:" + css("--text-muted") }), "un circuit"),
+        h("span", null, h("span", { class: "key-line", style: "background:" + css("--s1") }), "moyenne")] : null)),
+    h("div", { class: "desc" }, "Moyenne glissante sur 5 courses du tour lancé moyen de la voiture au plan de base. Sous 100 % = plus rapide qu'au départ. Survol : le circuit ; clic : son détail."), ov));
+  const grid = h("div", { class: "grid-cards" });
+  for (const { t, st } of all) {
+    const sp = h("div", { class: "spark chart" });
+    chronoDraws.push(() => chronoChart(sp, t, false));
+    grid.append(h("button", { class: "card", type: "button", onclick: () => openChrono(t.key), "aria-label": "Détail IA chrono de " + t.name },
+      h("div", { class: "map" }, chronoMap(t, false)),
+      h("div", { class: "body" },
+        h("div", { class: "title" }, h("h3", null, t.name), h("span", { class: "chip" }, t.animal + " · " + t.points.length + " course" + (t.points.length > 1 ? "s" : ""))),
+        h("dl", { class: "kv" }, chronoLapKV(st, false),
+          h("dt", null, "Ton record (course ÷ tours)"), h("dd", null, t.playerRecord ? fmtTime(t.playerRecord.time) : "—"),
+          h("dt", null, "IA, même calcul"), h("dd", null, st.best3 ? [fmtTime(st.best3.time) + " ", vsPlayer(t.playerRecord, st.best3, true)] : "—"),
+          h("dt", null, "Plan de base (tour lancé)"), h("dd", null, st.last ? [fmtTime(st.last), st.enough ? [" ", deltaSpan(st.first, st.last, true, 1)] : null] : "—"),
+          h("dt", null, "Améliorations"), h("dd", null, st.gen + " / " + st.tried)),
+        sp)));
+  }
+  app.append(h("h2", null, "Circuits chrono"),
+    h("div", { class: "sub", style: "margin:-6px 0 12px" }, "Carte : trajectoire du plan de base (bleu), vitesses limitées (orange). Temps : meilleur 1er tour, meilleur tour lancé et meilleure course, toutes voitures. Courbe : tour lancé moyen du plan de base. Clic pour le détail."),
+    grid);
+  if (D.chronoMissing && D.chronoMissing.length) app.append(h("div", { class: "missing" }, "Pas encore couru en chrono : " + D.chronoMissing.join(", ")));
+}
+
+// ------------------------------------------------------------------ page
+function render() {
+  const app = document.getElementById("app");
+  const races = D.races;
+  const live = !!document.querySelector('meta[http-equiv="refresh"]');
+  app.replaceChildren(h("header", { class: "top" },
+    h("h1", null, "Entraînement des IA"),
+    h("span", { class: "sub" }, "Mis à jour le " + D.generated),
+    live ? h("span", { class: "live" }, "en direct, se recharge tout seul") : null));
+  if (D.empty) {
+    app.append(h("div", { class: "panel empty" }, "Pas encore de course enregistrée. Lance mods\\entrainer-ia.ps1 : chaque course terminée apparaîtra ici."));
+    return;
+  }
+  if (D.chrono && D.chrono.length) renderChrono(app);
+  if (!races.length) { drawAll = () => chronoDraws.forEach((f) => f()); requestAnimationFrame(drawAll); return; }
+  if (D.chrono && D.chrono.length) app.append(h("h2", { style: "margin-top:48px;font-size:22px" }, "IA du jeu (entraînement normal)"));
+  // tuiles
+  const byKey = D.tracks.map(trackStats);
+  const firsts = byKey.map((x) => x.first), lasts = byKey.filter((x) => x.runs.length > 1).map((x) => x.last);
+  const firstsSame = byKey.filter((x) => x.runs.length > 1).map((x) => x.first);
+  const mean = (a, f) => a.length ? a.reduce((s, r) => s + f(r), 0) / a.length : null;
+  const hFirst = mean(firstsSame, (r) => r.hitsPerLap), hLast = mean(lasts, (r) => r.hitsPerLap);
+  const game = races.reduce((a, r) => a + r.game, 0), real = races.reduce((a, r) => a + r.real, 0);
+  const walls = byKey.reduce((a, x) => a + x.last.walls, 0), dangers = byKey.reduce((a, x) => a + x.last.danger, 0);
+  const planned = D.planned;
+  const lastRace = races[races.length - 1];
+  const winRel = (x) => (x.first.winTime && x.last.winTime) ? x.last.winTime / x.first.winTime : null;
+  const rels = byKey.filter((x) => x.runs.length > 1).map(winRel).filter((v) => v != null);
+  const relMean = rels.length ? rels.reduce((a, b) => a + b, 0) / rels.length : null;
+  app.append(h("section", { class: "tiles" },
+    h("div", { class: "tile" }, h("div", { class: "label" }, "Courses jouées"), h("div", { class: "value" }, races.length),
+      h("div", { class: "note" }, D.tracks.length + " circuits" + (planned && lastRace ? " · entraînement en cours : " + lastRace.race + " / " + lastRace.total : ""))),
+    h("div", { class: "tile" }, h("div", { class: "label" }, "Temps de course simulé"), h("div", { class: "value" }, fmtDur(game)),
+      h("div", { class: "note" }, "en " + fmtDur(real) + " réelles")),
+    h("div", { class: "tile" }, h("div", { class: "label" }, "Chocs par IA et par tour"),
+      h("div", { class: "value" }, hLast != null ? nf2.format(hLast) : nf2.format(mean(firsts, (r) => r.hitsPerLap))),
+      h("div", { class: "note" }, hLast != null ? ["1re course sur chaque circuit : " + nf2.format(hFirst) + " → dernière ", deltaSpan(hFirst, hLast)] : "comparaison dès la 2e course sur un circuit")),
+    h("div", { class: "tile" }, h("div", { class: "label" }, "Temps du vainqueur"),
+      h("div", { class: "value" }, relMean != null ? deltaSpan(1, relMean, true, 1) : "—"),
+      h("div", { class: "note" }, relMean != null ? "dernière course par rapport à la 1re, en moyenne sur " + rels.length + " circuits" : "comparaison dès la 2e course sur un circuit")),
+    h("div", { class: "tile" }, h("div", { class: "label" }, "Mémoire des IA"), h("div", { class: "value" }, walls),
+      h("div", { class: "note" }, "portes avec un mur appris · " + dangers + " points dangereux"))));
+
+  // évolution
+  const modes = MODES.filter((m) => races.some((r) => r.mode === m));
+  const bestByKey = new Map(D.tracks.map((t) => [t.key, Math.min(...t.runs.map((id) => raceById.get(id).winTime).filter((v) => v != null))]));
+  const c1 = h("div", { class: "chart" }), c2 = h("div", { class: "chart" });
+  app.append(h("h2", null, "Évolution"), h("section", { class: "charts" },
+    h("div", { class: "panel" }, h("div", { class: "head" }, h("h3", null, "Chocs contre le décor, par IA et par tour"), legendModes(modes, "bar")),
+      h("div", { class: "desc" }, "Une barre par course, dans l'ordre. Le trait gris est la moyenne de la passe : il doit baisser d'une passe à l'autre."), c1),
+    h("div", { class: "panel" }, h("div", { class: "head" }, h("h3", null, "Temps du vainqueur, en % du meilleur sur ce circuit"), legendModes(modes, "dot")),
+      h("div", { class: "desc" }, "100 % = la course la plus rapide jamais vue sur le circuit. Plus bas = plus rapide."), c2)));
+  const drawCharts = () => {
+    raceChart(c1, { title: "Chocs par IA et par tour, course après course", kind: "bar", zero: true, value: (r) => r.hitsPerLap,
+      tick: (v) => nf1.format(v), fmt: (v) => nf2.format(v) + " choc(s) par IA et par tour", label: "chocs contre le décor" });
+    raceChart(c2, { title: "Temps du vainqueur en % du meilleur temps du circuit", kind: "dot", zero: false,
+      value: (r) => (r.winTime && isFinite(bestByKey.get(r.key))) ? r.winTime / bestByKey.get(r.key) * 100 : null,
+      tick: (v) => nf0.format(v) + " %", fmt: (v) => nf1.format(v) + " % du meilleur temps", label: "temps du vainqueur" });
+  };
+
+  // circuits
+  const grid = h("div", { class: "grid-cards" });
+  const sparks = [];
+  D.tracks.forEach((t, i) => {
+    const st = byKey[i];
+    const sp = h("div", { class: "spark chart" });
+    sparks.push([sp, t]);
+    const hitsTxt = st.runs.length > 1 ? [st.first.hits + " → " + st.last.hits + " ", deltaSpan(st.first.hitsPerLap, st.last.hitsPerLap)] : String(st.first.hits);
+    grid.append(h("button", { class: "card", type: "button", onclick: () => openTrack(t.key), "aria-label": "Détail de " + t.name },
+      h("div", { class: "map" }, mapSvg(t, t.runs[t.runs.length - 1], false)),
+      h("div", { class: "body" },
+        h("div", { class: "title" }, h("h3", null, t.name), h("span", { class: "chip" }, t.runs.length + " course" + (t.runs.length > 1 ? "s" : ""))),
+        h("dl", { class: "kv" },
+          h("dt", null, "Meilleur temps IA"), h("dd", null, st.best ? fmtTime(st.best.time) + " · " + st.best.animal : "—"),
+          h("dt", null, "Record du joueur"), h("dd", null, t.record ? fmtTime(t.record.time) : "—"),
+          h("dt", null, "Meilleur tour IA"), h("dd", null, st.bestLap ? fmtTime(st.bestLap.time) : "—"),
+          h("dt", null, "Chocs"), h("dd", null, hitsTxt),
+          h("dt", null, "Murs appris"), h("dd", null, String(st.last.walls))),
+        sp)));
+  });
+  app.append(h("h2", null, "Circuits"),
+    h("div", { class: "sub", style: "margin:-6px 0 12px" }, "Carte : trajet des IA, points dangereux (orange) et chocs (points blancs) de la dernière course. Courbe : temps du vainqueur à chaque course, pointillé = record du joueur. Clic pour le détail."),
+    grid);
+  if (D.missing && D.missing.length) app.append(h("div", { class: "missing" }, "Pas encore couru : " + D.missing.map((m) => m.name).join(", ")));
+
+  // tableau complet
+  const rows = races.slice().reverse().map((r) => {
+    const t = trackByKey.get(r.key);
+    return h("tr", { style: "cursor:pointer", onclick: () => openTrack(r.key, r.i) },
+      h("td", { class: "n" }, r.i), h("td", null, r.date), h("td", null, t ? t.name : r.track),
+      h("td", null, h("span", { class: "key-dot", style: "background:" + modeColor(r.mode) }), " ", r.mode),
+      h("td", null, r.winner || "—"), h("td", { class: "n" }, fmtTime(r.winTime)), h("td", { class: "n" }, fmtTime(r.bestLap)),
+      h("td", { class: "n" }, r.hits), h("td", { class: "n" }, nf2.format(r.hitsPerLap)), h("td", { class: "n" }, r.stuck),
+      h("td", { class: "n" }, r.finished + " / " + r.cars), h("td", { class: "n" }, r.walls), h("td", { class: "n" }, fmtDur(r.real)));
+  });
+  app.append(h("h2", null, "Toutes les courses"), h("details", { class: "panel" }, h("summary", null, races.length + " courses (la plus récente en haut)"),
+    h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null,
+      ["N°", "Date", "Circuit", "Difficulté", "Vainqueur", "Temps", "Meilleur tour", "Chocs", "Chocs / IA / tour", "Coincées", "Arrivées", "Murs appris", "Durée réelle"]
+        .map((x, i) => h("th", { class: [0, 5, 6, 7, 8, 9, 10, 11, 12].includes(i) ? "n" : "" }, x)))), h("tbody", null, rows)))));
+
+  drawAll = () => { drawCharts(); sparks.forEach(([el, t]) => spark(el, t, false)); chronoDraws.forEach((f) => f()); };
+  requestAnimationFrame(drawAll);
+}
+let drawAll = () => {};
+let resizeTimer = 0;
+addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => drawAll(), 120); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render());
+render();
+// rapport-ia.html#circuit-6 : ouvre directement la fiche du circuit 6 (numéro de RacerModule.MAPNAMES)
+const hashTrack = /^#circuit-(\d+)$/.exec(location.hash);
+if (hashTrack) { const t = D.tracks.find((x) => x.track === +hashTrack[1]); if (t) openTrack(t.key); }
+// rapport-ia.html#chrono-0 : fiche IA chrono du circuit 0
+const hashChrono = /^#chrono-(\d+)$/.exec(location.hash);
+if (hashChrono) { const t = (D.chrono || []).find((x) => x.track === +hashChrono[1]); if (t) openChrono(t.key); }
+</script>
+</body>
+</html>

@@ -106,6 +106,10 @@ check("les %d fichiers d'origine remplacés (classes et données) sont gardés d
       and rel_files(backup) == sorted(replaced + ["fichiers_du_mod.txt"]))
 check("les sauvegardes du joueur ne sont pas touchées",
       all(sha(os.path.join(game, s)) == before[s] for s in ("progress.cfg", "mods.dat", "online.dat", "grandprix.dat")))
+ai_start = os.path.join(data, "Data", "aimap_depart.dat")
+ai_map = os.path.join(game, "aimap.dat")
+check("pas encore de mémoire des IA : celle de départ du mod est copiée en aimap.dat",
+      os.path.exists(ai_start) and filecmp.cmp(ai_map, ai_start, False) and "aimap.dat" not in before)
 
 code, out = run()  # mise à jour : même paquet, sans redonner l'adresse
 check("mise à jour réussie", code == 0)
@@ -137,7 +141,11 @@ code, out = run("-Uninstall")
 check("désinstallation réussie", code == 0)
 print(out.strip())
 after = snapshot(game)
-check("le dossier du jeu est revenu exactement comme avant (%d fichiers)" % len(after), after == before)
+check("mémoire des IA laissée en place à la désinstallation", after.pop("aimap.dat", None) == sha(ai_start))
+check("le reste du dossier du jeu est revenu exactement comme avant (%d fichiers)" % len(after), after == before)
+with open(ai_map, "w") as f:
+    f.write("appris chez l'ami")
+learned = sha(ai_map)
 code, out = run("-Uninstall")
 check("désinstaller deux fois : refusé proprement", code == 1 and "pas install" in out)
 
@@ -146,6 +154,7 @@ with open(texts, "ab") as f:
     f.write(b"\r\n/* modifie */\r\n")
 code, out = run()
 check("jeu modifié à la main : l'installation prévient (ATTENTION … Texts.scr)", code == 0 and "ATTENTION" in out and "Texts.scr" in out)
+check("mémoire des IA de l'ami : jamais écrasée par celle de départ", sha(ai_map) == learned)
 code, out = run("-Uninstall")
 with open(texts, "rb") as f:
     check("…et la désinstallation remet le fichier tel qu'il était", code == 0 and f.read().endswith(b"/* modifie */\r\n"))

@@ -10,4 +10,4 @@
 !Ranked(i,i)
 
 Server("127.0.0.1", 7778)
-Ranked(3, 3)
+Ranked(3, 5)

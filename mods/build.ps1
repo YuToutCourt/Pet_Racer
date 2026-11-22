@@ -25,8 +25,9 @@ $Classes  = Join-Path $Root 'build\classes'
 $JavaSrc  = Join-Path $PSScriptRoot 'java'
 $DataSrc  = Join-Path $PSScriptRoot 'data'
 
-if (Get-Process 'PetRacer' -ErrorAction SilentlyContinue) {
-    throw 'Pet Racer est ouvert : ferme le jeu avant de lancer le build.'
+# seulement le jeu de game_dev (celui de game_joueur, mods\jouer.ps1, a ses propres fichiers)
+if (Get-Process 'PetRacer' -ErrorAction SilentlyContinue | Where-Object { -not $_.Path -or $_.Path.StartsWith($Dev + '\', [StringComparison]::OrdinalIgnoreCase) }) {
+    throw 'Pet Racer est ouvert depuis game_dev : ferme ce jeu avant de lancer le build.'
 }
 
 if ($Clean -or -not (Test-Path $Dev)) {

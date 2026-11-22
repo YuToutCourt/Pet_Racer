@@ -341,6 +341,7 @@ public class RacerGame extends Game {
    void LoadLevel(int var1) {
       String var2 = RacerModule.GetLevelFileName(var1);
       ModAIMap.m_sLevel = var2; // [mod] carte du circuit pour l'IA (aimap.dat)
+      ModAIMap.m_bReversed = false; // [mod] sens aller tant que CoreLogic.PrepareTrackBeforeRace ne l'a pas retourné
 
       try {
          GameObject.CrashLog("Loading level " + var2);
@@ -499,7 +500,10 @@ public class RacerGame extends Game {
       ModAnimals.Load(); // [mod] stats des animaux (Data\animals.scr), avant toute voiture
       ModBonuses.Load(); // [mod] tirage des bonus selon la place (Data\bonuses.scr)
       ModGrandPrix.Load(); // [mod] Grand Prix : nombre de courses et points (Data\grandprix.scr)
-      ModOnline.Init(); // [mod] en ligne : reglages et socket UDP (Data\online.scr, nettest.scr)
+      ModTraining.Init(); // [mod] entraînement automatique des IA (entrainement.scr, mods\entrainer-ia.ps1)
+      if (!ModTraining.m_bActive) {
+         ModOnline.Init(); // [mod] en ligne : reglages et socket UDP (Data\online.scr, nettest.scr)
+      }
       this.RegisterKeyRequest();
       this.SetDefaultSoundRanges(1000.0F, 4000.0F);
       this.LoadSoundTemplates("Data/sounds.ini");
@@ -520,6 +524,7 @@ public class RacerGame extends Game {
    public void OnFrame() {
       super.OnFrame();
       ModOnline.Frame(); // [mod] en ligne : paquets recus
+      ModTraining.Frame(); // [mod] entraînement des IA : course suivante, fin de course
       ModFrameLimiter.Frame();
    }
 
@@ -674,6 +679,9 @@ public class RacerGame extends Game {
                   var3 = (int)GetRandom(1.0F, 4.0F);
                   this.LoadLevel(var3);
             }
+         } else if (ModTraining.m_bRunning) {
+            var3 = ModTraining.PrepareRace(GetCoreLogic()); // [mod] entraînement des IA : circuit, tours, animaux
+            this.LoadLevel(var3);
          } else {
             var3 = (int)GetRandom(1.0F, 4.0F);
             this.LoadLevel(var3);
@@ -746,6 +754,10 @@ public class RacerGame extends Game {
 
    void OnInputKey(int var1, boolean var2, char var3) {
       super.OnInputKey(var1, var2, var3);
+      if (ModTraining.OnKey(var1, var2)) {
+         return; // [mod] entraînement des IA : Échap l'arrête
+      }
+
       ModNet.OnKey(var1, var2); // [mod] en ligne, arrivé : spectateur
       if (firstMenuModule != null && firstMenuModule.m_CurrentMenu == KidsSimpleMenuModule._MainMenuWindow) {
          if (var1 == 42 || var1 == 54) {
@@ -827,8 +839,13 @@ public class RacerGame extends Game {
       boolean var2 = m_bEscPressed;
       m_bEscPressed = false;
       ModNet.OnRaceEnded(var2); // [mod] en ligne : fin de session (BYE)
-      if (!RacerModule.m_bIsDemo && ModAI.IsImproved()) {
+      boolean bTraining = RacerModule.m_bIsDemo && ModTraining.m_bRunning && ModTraining.m_bInRace;
+      if ((!RacerModule.m_bIsDemo || bTraining) && ModAI.IsImproved()) {
          VehicleAI.ModSaveMemory(); // [mod] ce que les IA ont appris sur ce circuit (aimap.dat), arrivée ou Échap
+      }
+
+      if (bTraining) {
+         ModTraining.OnRaceEnded(var2); // [mod] entraînement des IA : course suivante (ou arrêt sur Échap)
       }
       if (!RacerModule.m_bIsDemo && !var2) {
          var1.MakeProgressAfterAdventureRace();

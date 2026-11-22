@@ -75,7 +75,9 @@ public class VehicleAI extends GameObject {
    // vitesse dans les virages : temps disponible / temps nécessaire pour tourner (l'original : 0,5, sans le
    // virage suivant, et jamais de frein)
    static final float _MOD_CAUTION = 0.55F;
-   static final float _MOD_BRAKE_RATIO = 0.5F;
+   // [mod] 0 = jamais de frein avant les virages (2026-11-20, demande : « je voudrais qu'elle freine plus du tout ») ;
+   // l'IA lâche seulement l'accélérateur (r < 1). 0,5 avant : freinait si r < 0,5 au-dessus de 45 % de la vitesse maxi
+   static final float _MOD_BRAKE_RATIO = 0.0F;
    static final float _MOD_BRAKE_MIN_SPEED = 0.45F;   // fraction de la vitesse maxi
    // volant : plein braquage (donc plein dérapage) à partir de cet angle, proportionnel en dessous
    static final float _MOD_FULL_STEER = 25.0F;
@@ -91,6 +93,11 @@ public class VehicleAI extends GameObject {
    static final float _MOD_REVERSE_MIN = 0.6F;
    static final float _MOD_REVERSE_MAX = 1.6F;
    static final int _MOD_RESPAWN_AFTER = 3;           // dégagements de suite au même point -> remise en piste
+   static final float _MOD_RESPAWN_AGAIN = 60.0F;     // 2e remise au même point dans ce délai : posée après l'obstacle
+   // vitesse de passage apprise (ModAIMap) : au-dessus, on lâche l'accélérateur ; 8 % au-dessus, on freine (seule
+   // exception à « jamais de frein », _MOD_BRAKE_RATIO : un saut suivi d'un virage ne se passe pas autrement)
+   static final float _MOD_OVER_BRAKE = 1.08F;
+   static final float _MOD_PASS_RECENT = 6.0F;        // un choc compte pour une porte passée il y a moins de 6 s
    static final float _MOD_STUCK_FORGET = 15.0F;
    // bonus
    static final float _MOD_BACK_DIST = 2500.0F;
@@ -142,6 +149,14 @@ public class VehicleAI extends GameObject {
    boolean m_bModLogged = false;
    int m_nModStuck = 0;
    int m_nModRespawn = 0;
+   int m_nModWarp = 0;                // remises en piste du jeu vers l'avant (zone de remise en piste touchée)
+   int m_iModRespawnPoint = -1;
+   // [mod] vitesses de passage apprises (ModAIMap.m_aSpeed) : vitesse (part de la vitesse maxi) et heure du dernier
+   // passage à chaque porte
+   float[] m_aModPassSpeed = null;
+   float[] m_aModPassTime = null;
+   boolean m_bModOverSpeed = false;
+   float m_fModRespawnAt = -100.0F;
    int m_nModBrakes = 0;
    int m_nModAvoid = 0;
    int m_nModBonusGot = 0;
@@ -711,12 +726,26 @@ public class VehicleAI extends GameObject {
       this.m_fModSpeed = 1.0F - RacerGame.GetRandom() * 0.015F;
       this.m_fModApexK = 0.75F + 0.5F * RacerGame.GetRandom();
       this.m_fModWideK = 0.5F + RacerGame.GetRandom();
+      if (ModChrono.m_bOn) {
+         // [mod] IA chrono : pas de hasard de conduite, les écarts de chrono viennent du plan (ModChrono)
+         this.m_fModSkill = 1.0F;
+         this.m_fModLane = 0.0F;
+         this.m_fModAggro = 0.0F;
+         this.m_fModSpeed = 1.0F;
+         this.m_fModApexK = 1.0F;
+         this.m_fModWideK = 1.0F;
+      }
+
       this.ModApplyHandling();
       this.m_bModNextValid = false;
       this.m_iModNext = -1;
       this.m_fModAvoid = 0.0F;
       this.m_iModState = 0;
       this.m_iCurrPoint = 1;
+      if (ModChrono.m_bOn) {
+         ModChrono.Begin(this); // [mod] IA chrono : plan de cette voiture, voitures traversables
+      }
+
       this.ModChooseNextPoint();
       this.m_bMoving = true;
       this.m_Vehicle.CalculateVehicleInput(true);
@@ -854,6 +883,14 @@ public class VehicleAI extends GameObject {
    // décalage latéral de la cible à la porte i (> 0 vers la droite de la porte) : corde modérée au virage, extérieur
    // avant et après (entrée et sortie larges), couloir de l'IA en ligne droite, un peu de hasard selon le niveau
    float ModLineOffset(int i) {
+      if (ModChrono.m_bOn) {
+         // [mod] IA chrono : le décalage du plan que cette voiture essaie
+         float o = ModChrono.Offset(this, i);
+         if (o == o) {
+            return o;
+         }
+      }
+
       TrackPoint p = this.m_Track.GetPoint(i);
       this.ModRightOf(p);
       float rx = this.m_fModTmp[0];
@@ -881,7 +918,10 @@ public class VehicleAI extends GameObject {
       float straight = 1.0F - Math.abs(side);
       float f = this.m_fModLane * _MOD_LANE * straight * (1.0F - Math.abs(around)) + side * q * this.m_fModApexK
          - around * _MOD_WIDE * this.m_fModWideK * straight;
-      f += (2.0F * RacerGame.GetRandom() - 1.0F) * _AI_NOISE[this.m_iAILevel] * _MOD_NOISE * this.m_fModSkill;
+      if (!ModChrono.m_bOn) {
+         f += (2.0F * RacerGame.GetRandom() - 1.0F) * _AI_NOISE[this.m_iAILevel] * _MOD_NOISE * this.m_fModSkill;
+      }
+
       if (f > 1.0F) {
          f = 1.0F;
       } else if (f < -1.0F) {
@@ -1020,6 +1060,7 @@ public class VehicleAI extends GameObject {
       float tz = this.m_CurrPoint.m_vPos.fZ - cz;
       // porte franchie (même test que l'original : la cible est passée derrière la ligne de la porte)
       if (this.m_fModGateRZ * tx - this.m_fModGateRX * tz < 0.0F) {
+         this.ModOnGatePassed(this.m_iCurrPoint, now);
          this.m_iCurrPoint = this.m_Track.GetNextPointNum(this.m_iCurrPoint);
          if (this.m_iCurrPoint != -1) {
             this.ModChooseNextPoint();
@@ -1126,6 +1167,9 @@ public class VehicleAI extends GameObject {
       float turn = v.GetDefaultMaxTurnAngle();
       float r = 99.0F;
       float caution = _MOD_CAUTION * (1.1F - _MOD_CAUTION_LEVEL * this.m_iAILevel) * (1.0F + _MOD_DANGER_CAUTION * Math.max(this.ModDanger(this.m_iCurrPoint), this.ModDanger(this.m_iModNext)));
+      if (ModChrono.m_bOn) {
+         caution *= ModChrono.Caution(this, this.m_iCurrPoint); // [mod] IA chrono : prudence du plan à cette porte
+      }
       if (speed > vmax * 0.15F && !v.m_bTurbo && turn > 0.0F) {
          float need = a0 / turn * caution;
          if (need > 0.0001F) {
@@ -1143,7 +1187,19 @@ public class VehicleAI extends GameObject {
          }
       }
 
-      if (r < _MOD_BRAKE_RATIO && speed > vmax * _MOD_BRAKE_MIN_SPEED && v.m_bIsOnTrack) {
+      // [mod] vitesse de passage apprise à la porte visée (et à la suivante quand elle est proche)
+      float lim = this.ModSpeedLimit(this.m_iCurrPoint);
+      if (this.m_bModNextValid && d0 < 1200.0F) {
+         lim = Math.min(lim, this.ModSpeedLimit(this.m_iModNext));
+      }
+
+      this.m_bModOverSpeed = lim < 1.0F && speed > lim * vmax;
+      if (this.m_bModOverSpeed && r >= 1.0F) {
+         r = 0.99F;
+      }
+
+      boolean bOverBrake = lim < 1.0F && speed > lim * vmax * _MOD_OVER_BRAKE && !v.m_bTurbo;
+      if ((r < _MOD_BRAKE_RATIO || bOverBrake) && speed > vmax * _MOD_BRAKE_MIN_SPEED && v.m_bIsOnTrack) {
          if (!this.m_bModBraking) {
             this.m_nModBrakes++;
             this.m_bModBraking = true;
@@ -1164,8 +1220,18 @@ public class VehicleAI extends GameObject {
       }
    }
 
+   // vitesse de passage permise à la porte i : apprise (aimap.dat), ou celle du plan en IA chrono
+   float ModSpeedLimit(int i) {
+      return ModChrono.m_bOn ? ModChrono.Limit(this, i) : ModAIMap.Speed(this.m_Track, i);
+   }
+
    // se décaler si une voiture plus lente est juste devant, dans le même couloir
    void ModAvoid(float cx, float cz, float fx, float fz, float speed, float dt) {
+      if (ModChrono.m_bOn) {
+         this.m_fModAvoid = 0.0F; // [mod] IA chrono : les voitures se traversent
+         return;
+      }
+
       float want = 0.0F;
       float fBest = _MOD_AVOID_DIST;
       java.util.Vector cars = RacerModule.m_Mod.m_RaceParams.m_Vehicles;
@@ -1293,8 +1359,61 @@ public class VehicleAI extends GameObject {
       return false;
    }
 
+   // porte i franchie : vitesse notée ; la porte d'il y a deux portes est passée sans choc depuis -> limite remontée
+   void ModOnGatePassed(int i, float now) {
+      int n = this.m_Track.m_TrackPoints.size();
+      if (this.m_aModPassSpeed == null || this.m_aModPassSpeed.length != n) {
+         this.m_aModPassSpeed = new float[n];
+         this.m_aModPassTime = new float[n];
+         for (int j = 0; j < n; j++) {
+            this.m_aModPassTime[j] = -100.0F;
+         }
+      }
+
+      if (i < 0 || i >= n) {
+         return;
+      }
+
+      float vmax = this.m_Vehicle.GetMaxSpeed();
+      this.m_aModPassSpeed[i] = vmax > 0.0F ? Math.abs(this.m_Vehicle.m_fCurrSpeed) / vmax : 0.0F;
+      this.m_aModPassTime[i] = now;
+      if (ModChrono.m_bOn) {
+         ModChrono.OnGate(this, i, now); // [mod] IA chrono : temps des tours lancés ; rien d'appris dans aimap.dat
+         return;
+      }
+
+      int k = this.m_Track.GetPrevPointNum(this.m_Track.GetPrevPointNum(i));
+      if (k >= 0 && k < n && now - this.m_aModPassTime[k] < _MOD_PASS_RECENT * 2.0F && this.m_fModLastObstacle < this.m_aModPassTime[k]) {
+         ModAIMap.RelaxSpeed(this.m_Track, k);
+      }
+   }
+
+   // Vehicle.Respawn pose la voiture à la porte (courante - 2) : on avance la porte courante de 3 pour qu'elle
+   // reparte de la porte d'après, vers la suivante. Jamais par-dessus la ligne d'arrivée (le compte des tours).
+   boolean ModRespawnAhead() {
+      Vehicle v = this.m_Vehicle;
+      Track t = RacerModule.m_Mod.m_Track;
+      int k = v.m_iCurrTrackPoint;
+
+      for (int j = 0; j < 3; j++) {
+         int nx = t.GetNextPointNum(k);
+         if (nx <= k) {
+            return false;
+         }
+
+         k = nx;
+      }
+
+      v.m_iCurrTrackPoint = k;
+      return true;
+   }
+
    boolean ModStartReverse(float now, String sWhy) {
       this.m_nModStuck++;
+      if (ModChrono.m_bOn) {
+         ModChrono.OnHit(this, this.m_iCurrPoint, 3); // [mod] IA chrono : blocage, endroit à retravailler
+      }
+
       this.ModMarkDanger(_MOD_DANGER_STUCK);
       if (this.m_iModStuckPoint == this.m_iCurrPoint && now - this.m_fModLastStuck < _MOD_STUCK_FORGET) {
          this.m_iModStuckRepeat++;
@@ -1307,9 +1426,20 @@ public class VehicleAI extends GameObject {
       if (this.m_iModStuckRepeat >= _MOD_RESPAWN_AFTER) {
          this.m_iModStuckRepeat = 0;
          this.m_nModRespawn++;
+         // [mod] déjà remise en piste ici : Vehicle.Respawn la reposerait 2 portes avant, sur le même obstacle, en boucle
+         // jusqu'à la fin de la course (variantes en sens inverse : 39 remises en une course). On la pose après.
+         boolean bAgain = this.m_iModRespawnPoint == this.m_iCurrPoint && now - this.m_fModRespawnAt < _MOD_RESPAWN_AGAIN;
+         boolean bAhead = bAgain && this.ModRespawnAhead();
+         this.m_iModRespawnPoint = this.m_iCurrPoint;
+         this.m_fModRespawnAt = now;
          this.m_Vehicle.m_bMustRespawn = true;
          this.ModResetStuckCheck(now + 2.5F);
-         GameObject.CrashLog("[mod] " + Rocket.ModName(this.m_Vehicle) + " : " + sWhy + " au point " + this.m_iCurrPoint + ", remise en piste\n");
+         Vector p = this.m_Vehicle.m_vVehiclePosition;
+         GameObject.CrashLog(
+            "[mod] " + Rocket.ModName(this.m_Vehicle) + " : " + sWhy + " au point " + this.m_iCurrPoint + ", remise en piste"
+               + (bAhead ? " apres l'obstacle" : (bAgain ? " (pres de la ligne : au meme endroit)" : "")) + ", position " + Math.round(p.fX) + ","
+               + Math.round(p.fY) + "," + Math.round(p.fZ) + " (sol " + Math.round(RacerModule.m_Mod.TerrainHeight(p.fX, p.fZ)) + ")\n"
+         );
          return false;
       }
 
@@ -1430,6 +1560,10 @@ public class VehicleAI extends GameObject {
 
    // [mod] fin de course (RacerGame.EndModule, arrivée ou Échap) : ce que les IA ont appris, dans aimap.dat
    static void ModSaveMemory() {
+      if (ModChrono.m_bOn) {
+         return; // [mod] IA chrono : la mémoire des IA du jeu (aimap.dat) n'est pas touchée
+      }
+
       if (RacerModule.m_Mod == null || ModAIMap.m_Track == null || ModAIMap.m_Track != RacerModule.m_Mod.m_AITrack) {
          return; // pas de carte pour ce circuit (pas d'IA améliorée)
       }
@@ -1454,16 +1588,21 @@ public class VehicleAI extends GameObject {
       return m_aModDanger;
    }
 
+   // appris aux courses d'avant (ModAIMap) + relevé pendant celle-ci
    float ModDanger(int i) {
+      if (ModChrono.m_bOn) {
+         return 0.0F; // [mod] IA chrono : le plan décide seul (pas de points dangereux, qui changent en course)
+      }
+
       float[] a = ModDangerTable(this.m_Track);
-      return i >= 0 && i < a.length ? a[i] : 0.0F;
+      return i >= 0 && i < a.length ? Math.min(1.0F, ModAIMap.Saved(this.m_Track, i) + a[i]) : 0.0F;
    }
 
    static int ModDangerCount() {
       int n = 0;
 
       for (int i = 0; m_aModDanger != null && i < m_aModDanger.length; i++) {
-         if (m_aModDanger[i] > 0.0F) {
+         if (ModAIMap.Saved(ModAIMap.m_Track, i) + m_aModDanger[i] >= 0.1F) {
             n++;
          }
       }
@@ -1471,9 +1610,13 @@ public class VehicleAI extends GameObject {
       return n;
    }
 
-   // le point visé (là où ça s'est mal passé) et le précédent (d'où l'on arrivait trop serré)
+   // le point visé (là où ça s'est mal passé) et le précédent (d'où l'on arrivait trop serré). La table est commune
+   // à toutes les IA : un incident compte pour 1/(nombre d'IA), une porte n'atteint 1 que si toutes s'y plantent
+   // (2026-11-20 : à +0,5 par choc et par IA, tout le circuit était « dangereux » en une course).
    void ModMarkDanger(float f) {
       float[] a = ModDangerTable(this.m_Track);
+      int nAI = RacerModule.m_Mod != null ? RacerModule.m_Mod.m_RaceParams.m_AITab.size() : 1;
+      f /= Math.max(1, nAI);
       int i = this.m_iCurrPoint;
       if (i >= 0 && i < a.length) {
          a[i] = Math.min(1.0F, a[i] + f);
@@ -1501,7 +1644,18 @@ public class VehicleAI extends GameObject {
       int i = this.m_iCurrPoint;
       float x = this.m_Vehicle.m_vVehiclePosition.fX;
       float z = this.m_Vehicle.m_vVehiclePosition.fZ;
+      ModTraining.OnHit(x, z); // [mod] entraînement : position du choc, pour la carte du rapport
       String sLearn = "";
+      if (ModChrono.m_bOn) {
+         // [mod] IA chrono : rien d'appris en course (couloirs, vitesses et dangers identiques pour les 6 voitures) ;
+         // le choc coûte du temps au plan (ModChrono._HIT_PENALTY) ; ModChrono note l'endroit (essais centrés là)
+         ModChrono.OnHit(this, i, 1);
+         ModChrono.OnObstacle(this, i, x, z, vNormal); // bornes : où la ligne du plan mène dans le décor
+         this.m_bModNextValid = false;
+         this.ModChooseNextPoint();
+         return;
+      }
+
       if (vNormal != null && i >= 0 && ModAIMap.m_Track == this.m_Track) {
          // [mod] mur appris (aimap.dat, pour toujours) : le bord du couloir recule du côté de l'obstacle, un pas
          // entier à la porte la plus proche de la voiture, un demi à l'autre (le choc est entre les deux)
@@ -1536,6 +1690,26 @@ public class VehicleAI extends GameObject {
                + (ModAIMap.Known(i) ? ", couloir " + Math.round(ModAIMap.m_aLo[i]) + ".." + Math.round(ModAIMap.m_aHi[i]) : ", porte pas cartographiee")
                + (sLearn.length() > 0 ? ", mur appris aux portes" + sLearn : "") + "\n"
          );
+      }
+
+      // [mod] trop vite à l'approche : les deux portes d'avant passeront moins vite (sauts, virages serrés)
+      if (i >= 0 && ModAIMap.m_Track == this.m_Track && this.m_aModPassSpeed != null) {
+         int g1 = this.m_Track.GetPrevPointNum(i);
+         int g2 = g1 >= 0 ? this.m_Track.GetPrevPointNum(g1) : -1;
+         String sCut = "";
+         if (g1 >= 0 && g1 < this.m_aModPassSpeed.length && now - this.m_aModPassTime[g1] < _MOD_PASS_RECENT
+            && ModAIMap.CutSpeed(this.m_Track, g1, this.m_aModPassSpeed[g1], ModAIMap._SPEED_CUT)) {
+            sCut = sCut + " " + g1 + ":" + Math.round(ModAIMap.m_aSpeed[g1] * 100.0F) + "%";
+         }
+
+         if (g2 >= 0 && g2 < this.m_aModPassSpeed.length && now - this.m_aModPassTime[g2] < _MOD_PASS_RECENT * 1.5F
+            && ModAIMap.CutSpeed(this.m_Track, g2, this.m_aModPassSpeed[g2], ModAIMap._SPEED_CUT2)) {
+            sCut = sCut + " " + g2 + ":" + Math.round(ModAIMap.m_aSpeed[g2] * 100.0F) + "%";
+         }
+
+         if (sCut.length() > 0 && m_nModHitLogs < _MOD_LOG_HITS) {
+            GameObject.CrashLog("[mod] IA " + Rocket.ModName(this.m_Vehicle) + " : trop vite avant le point " + i + ", vitesse apprise aux portes" + sCut + "\n");
+         }
       }
 
       this.ModMarkDanger(_MOD_DANGER_HIT);

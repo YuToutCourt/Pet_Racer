@@ -1821,6 +1821,10 @@ public class Vehicle extends TrackObject {
    }
 
    void RespawnForward() {
+      if (this.m_VehicleAI != null) {
+         this.m_VehicleAI.m_nModWarp++; // [mod] compté : posée plus loin par le jeu (IA chrono : tour pas valable)
+      }
+
       this.ZeroRespawnParams();
       this.PlayRespawnSound();
       Vector var1 = RacerModule.m_Mod.m_Track.GetPointPos(this.m_iCurrTrackPoint);
@@ -2677,6 +2681,7 @@ public class Vehicle extends TrackObject {
          int var9 = RacerModule.m_Mod.m_Track.m_TrackPoints.size();
          if ((var2 > var9 - 5 || var2 == 0) && this.m_iCurrTrackPoint > 0 && this.m_iCurrTrackPoint < 5) {
             this.m_iCurrLoop++;
+            ModTraining.OnLap(this); // [mod] entraînement des IA : temps au tour (historique)
             if (this.m_iCurrLoop == RacerModule.m_Mod.m_RaceParams.m_iNofLoops && !this.m_bRaceFinished) {
                // [mod] temps exact (GetMissionTime n'avance que par pas de 0,1 s : deux arrivées serrées avaient le
                // même temps) et rang d'arrivée réel, qui fait foi pour la place, le podium et les records
@@ -2713,6 +2718,12 @@ public class Vehicle extends TrackObject {
                      this.FinishRace();
                   }
 
+                  return;
+               }
+
+               // [mod] entraînement des IA (ModTraining) : la démo continue jusqu'à la dernière arrivée
+               if (ModTraining.m_bRunning && ModTraining.m_bInRace) {
+                  ModTraining.OnCarFinished(this);
                   return;
                }
 

@@ -510,6 +510,7 @@ class RacerModule extends Module {
       if (this.m_Track != null && this.m_AITrack != null) {
          this.m_Track.ReverseTrack();
          this.m_AITrack.ReverseTrack();
+         ModAIMap.OnReverse(); // [mod] carte de l'IA refaite sur les portes retournées (SetStartPos juste après)
          this.GetBonusObjects();
          this.m_RaceParams.SetStartPos(this.m_RaceParams.m_vReverseStartPos);
       }
@@ -690,8 +691,9 @@ class RacerModule extends Module {
          }
       }
 
-      // [mod] en ligne sans bonus (choix de l'hôte, NetBonus(0)) : boîtes retirées comme l'extra « sans bonus »
-      if (ModNet.IsRaceOnline() && !ModNet.m_bBonus) {
+      // [mod] en ligne sans bonus (choix de l'hôte, NetBonus(0)) : boîtes retirées comme l'extra « sans bonus » ;
+      // entraînement des IA : sans bonus aussi, sauf Bonus(1) (ModTraining)
+      if (ModNet.IsRaceOnline() && !ModNet.m_bBonus || m_bIsDemo && ModTraining.m_bRunning && !ModTraining.m_bBonus) {
          this.m_RaceParams.m_AvailableBonuses = new LevelBonusTypes();
          this.m_RaceParams.m_AvailableBonuses.m_bModFixed = true;
          this.DeleteBonuses();
