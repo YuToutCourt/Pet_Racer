@@ -14,6 +14,8 @@
   -NoBuild : ne relance pas mods\build.ps1 avant (les classes de build\classes sont prises telles quelles)
   -AiMap   : copie d'abord la mémoire des IA de game_dev (aimap.dat, ce qu'elles ont appris sur chaque circuit) dans
              mods\data\Data\aimap_depart.dat. L'installeur la donne aux amis qui n'ont pas encore d'aimap.dat.
+             Refait aussi mods\data\Data\aiplans.dat (python mods\plans-ia.py) : les plans de l'IA chrono
+             (game_dev\aichrono.dat) qui battent l'IA experte, suivis par les IA expertes du jeu (ModPlans).
 #>
 param([string]$Server = '', [int]$Port = 7778, [switch]$NoBuild, [switch]$AiMap)
 
@@ -40,6 +42,11 @@ if ($AiMap) {
     if (-not (Test-Path $mine)) { throw 'game_dev\aimap.dat n''existe pas : fais d''abord quelques courses avec des IA.' }
     Copy-Item $mine $aiMapSrc -Force
     Write-Host "[aimap] game_dev\aimap.dat -> mods\data\Data\aimap_depart.dat ($(@([IO.File]::ReadAllLines($aiMapSrc) | Where-Object { $_ }).Count) lignes)"
+    # plans chrono validés pour les IA expertes (notes\ia.md, « Plans chrono pour les IA du jeu »)
+    if (Test-Path (Join-Path $Root 'game_dev\aichrono.dat')) {
+        & python (Join-Path $PSScriptRoot 'plans-ia.py') | Select-Object -Last 2 | ForEach-Object { Write-Host "[plans] $_" }
+        if ($LASTEXITCODE -ne 0) { throw 'mods\plans-ia.py a échoué : lance-le à la main pour voir pourquoi.' }
+    }
 }
 
 if (-not $NoBuild) {
@@ -118,5 +125,12 @@ if (Test-Path $aiMapSrc) {
     Write-Host "     mémoire des IA de départ : $($lines.Count) lignes, dont $walls avec des murs appris (du $((Get-Item $aiMapSrc).LastWriteTime.ToString('yyyy-MM-dd HH:mm')))"
 } else {
     Write-Host '     pas de mémoire des IA de départ (-AiMap pour prendre celle de game_dev)'
+}
+$plansSrc = Join-Path $DataSrc 'Data\aiplans.dat'
+if (Test-Path $plansSrc) {
+    $nPlans = @([IO.File]::ReadAllLines($plansSrc) | Where-Object { $_ -and -not $_.StartsWith('#') }).Count
+    Write-Host "     plans chrono des IA expertes : $nPlans circuit(s) (du $((Get-Item $plansSrc).LastWriteTime.ToString('yyyy-MM-dd HH:mm')))"
+} else {
+    Write-Host '     pas de plans chrono pour les IA expertes (-AiMap les refait depuis game_dev\aichrono.dat)'
 }
 exit 0

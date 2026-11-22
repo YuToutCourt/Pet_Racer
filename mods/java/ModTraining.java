@@ -15,6 +15,8 @@ import java.io.FileWriter;
 //   Son(0)                 0 = muet pendant l'entraînement
 //   Chrono(1)              IA chrono (ModChrono) : les IA cherchent le meilleur plan de course, mémoire aichrono.dat
 //   Animal("Ours")         IA chrono : l'animal des 6 voitures (le plan dépend de l'animal)
+//   Plans(1)               plans chrono des IA du jeu (ModPlans, Data\aiplans.dat) : 1 = une IA experte sur deux
+//                          (comparaison dans les mêmes courses, plan=1 dans les lignes A), 2 = toutes ; absent = aucune
 //   Relance(31)            le jeu se ferme toutes les 31 courses (0 = jamais) en écrivant entrainement_relance.txt ;
 //                          mods\entrainer-ia.ps1 le relance et l'entraînement reprend. Le jeu ralentit quand il tourne
 //                          longtemps (2026-11-21 : toutes les voitures +6 à 9 % en 7 h, images/s 1200 -> 700)
@@ -104,6 +106,10 @@ class ModTraining {
             ModChrono.m_bOn = k.GetIParam(0) != 0;
          }
 
+         if (k.Equals("Plans")) {
+            ModPlans.m_nTraining = Math.max(0, Math.min(2, k.GetIParam(0))); // [mod] plans chrono : 1 = une voiture sur deux
+         }
+
          if (k.Equals("Animal")) {
             int a = ModAnimals.Find(k.GetSParam(0));
             if (a >= 0) {
@@ -155,6 +161,7 @@ class ModTraining {
       Log(": " + m_nPasses + " passe(s) de " + m_aTracks.length + " circuits = " + Total() + " courses de " + m_nLaps + " tours, temps jusqu'a x" + m_nSpeed
          + ", difficultes " + sLevels + (m_bSound ? "" : ", muet") + (m_bBonus ? "" : ", sans bonus") + (m_nNext > 0 ? " ; reprise a la course " + (m_nNext + 1) : "")
          + (ModChrono.m_bOn ? " ; IA CHRONO, animal " + ModAnimals._NAMES[ModChrono.m_nAnimal] + ", memoire " + ModChrono._FILE : "")
+         + (!ModChrono.m_bOn && ModPlans.m_nTraining > 0 ? " ; plans chrono (" + ModPlans._FILE + ") pour " + (ModPlans.m_nTraining == 1 ? "une IA experte sur deux" : "toutes les IA expertes") : "")
          + (m_nRestartEvery > 0 ? " ; jeu relance toutes les " + m_nRestartEvery + " courses" : ""));
    }
 
@@ -642,6 +649,9 @@ class ModTraining {
             sb.append("\toff=").append(Sec(a.m_fModOffTrack)).append("\tstuck=").append(a.m_nModStuck).append("\trespawn=").append(a.m_nModRespawn).append("\twarp=").append(a.m_nModWarp)
                .append("\thits=").append(a.m_nModObstacles).append("\tbrakes=").append(a.m_nModBrakes).append("\tavoid=").append(a.m_nModAvoid)
                .append("\tbonus=").append(a.m_nModBonusUsed).append("\tlevel=").append(a.m_iAILevel);
+            if (ModPlans.m_nTraining > 0 && !ModChrono.m_bOn) {
+               sb.append("\tplan=").append(a.m_ModPlan != null ? 1 : 0); // [mod] course mixte (-Plans) : plan chrono suivi ou non
+            }
          }
 
          sb.append("\r\n");

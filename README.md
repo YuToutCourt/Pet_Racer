@@ -31,6 +31,8 @@ nouveaux bonus, une IA refaite et le jeu enfin à l'aise sur un PC moderne (1440
   caractère propre à chaque IA. Difficulté réglable : d'origine, auto, facile, normal, difficile, expert.
 - **Les IA apprennent les circuits** : murs touchés et endroits dangereux sont gardés dans `aimap.dat` et servent
   aux courses suivantes. L'installeur fournit une mémoire déjà entraînée à ceux qui n'en ont pas encore.
+- **IA chrono** : un entraînement à part fait évoluer, circuit par circuit, un plan de course (ligne, vitesses de
+  passage) ; les IA expertes suivent les plans qui battent vraiment leur propre trajectoire (`Data\aiplans.dat`).
 - **Bonus** : la Fusée devient jouable, nouveau **Missile** qui vise le premier, tirage des bonus selon la place
   dans la course.
 - **Stats des animaux** (accélération, vitesse, virage) affichées à l'écran du choix et réglables dans

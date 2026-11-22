@@ -30,6 +30,10 @@
              powershell -ExecutionPolicy Bypass -File mods\entrainer-ia.ps1 -Chrono
              powershell -ExecutionPolicy Bypass -File mods\entrainer-ia.ps1 -Chrono -Circuits tous
              powershell -ExecutionPolicy Bypass -File mods\entrainer-ia.ps1 -Chrono -Circuits 0,6,12 -Passes 200
+  -Plans   : course normale où une IA experte sur deux suit le plan chrono validé du circuit (game_dev\Data\aiplans.dat,
+             fait par python mods\plans-ia.py) : comparaison dans les mêmes courses, colonne plan=1 des lignes A ;
+             relancer ensuite plans-ia.py, qui juge chaque plan sur ces courses (notes/ia.md, « Plans chrono pour les IA du jeu »)
+             powershell -ExecutionPolicy Bypass -File mods\entrainer-ia.ps1 -Plans -Passes 3
   -Animal  : avec -Chrono, l'animal des 6 voitures (Ours par défaut : stats équilibrées) ; un plan par animal
   -Relance : le jeu est fermé et relancé toutes les 31 courses (0 = jamais) : il ralentit quand il tourne longtemps
              (2026-11-21 : toutes les voitures +6 à 9 % en 7 h, images/s 1200 -> 700, pas de physique 6,8 -> 10,6 ms)
@@ -60,6 +64,7 @@ param(
     [switch]$NouvelHistorique,
     [switch]$Restore,
     [switch]$Chrono,
+    [switch]$Plans,
     [string]$Animal = 'Ours',
     [int]$Relance = 31
 )
@@ -136,6 +141,7 @@ foreach ($n in ($Circuits -join ',').Split(',')) {
     if (-not [int]::TryParse($t, [ref]$c) -or $c -lt 0 -or $c -gt 30) { throw "Circuit $t hors de 0..30" }
     $tracks += $c
 }
+if ($Chrono -and $Plans) { throw '-Plans et -Chrono ne vont pas ensemble (l''IA chrono a ses propres plans)' }
 if ($Chrono -and -not $PSBoundParameters.ContainsKey('Passes')) {
     $Passes = if ($tracks.Count -eq 1) { 100 } else { 20 }
 }
@@ -155,6 +161,7 @@ if ($NouvelHistorique -and (Test-Path $History)) {
 # -Circuits tous (2026-11-21 : reprise à la course 4 = circuit n° 3, Forêt 1, 2 et 3 sautés). -Passes peut changer.
 $cfgFile = Join-Path $Dev 'entrainement_suite_reglages.txt'
 $cfg = "chrono=$([int][bool]$Chrono) circuits=$(if ($tracks.Count -gt 0) { $tracks -join ',' } else { 'tous' }) tours=$Tours niveaux=$($levels -join ',') animal=$Animal"
+if ($Plans) { $cfg += ' plans=1' } # (pas ajouté sinon : la reprise d'un entraînement d'avant reste valable)
 $cfgOld = if (Test-Path $cfgFile) { (Get-Content $cfgFile -TotalCount 1).Trim() } else { $null }
 if ($Nouveau -and (Test-Path $Progress)) {
     Remove-Item $Progress
@@ -175,7 +182,8 @@ $scr = "/* Entrainement automatique des IA (mods\entrainer-ia.ps1, ModTraining) 
        "Passes($Passes)`r`nTours($Tours)`r`nVitesse($Vitesse)`r`nNiveaux(`"$($levels -join ',')`")`r`nRelance($([Math]::Max(0, $Relance)))`r`n" +
        $(if ($tracks.Count -gt 0) { "Circuits(`"$($tracks -join ',')`")`r`n" } else { '' }) +
        "Son($(if ($Son) { 1 } else { 0 }))`r`nBonus($(if ($Bonus) { 1 } else { 0 }))`r`n" +
-       $(if ($Chrono) { "!Chrono(i)`r`n!Animal(s)`r`nChrono(1)`r`nAnimal(`"$Animal`")`r`n" } else { '' })
+       $(if ($Chrono) { "!Chrono(i)`r`n!Animal(s)`r`nChrono(1)`r`nAnimal(`"$Animal`")`r`n" } else { '' }) +
+       $(if ($Plans) { "!Plans(i)`r`nPlans(1)`r`n" } else { '' })
 
 $started = Get-Date
 $memBefore = if (Test-Path (Join-Path $Dev 'aimap.dat')) { (Get-Item (Join-Path $Dev 'aimap.dat')).Length } else { 0 }

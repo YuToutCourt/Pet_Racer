@@ -114,6 +114,9 @@ public class VehicleAI extends GameObject {
    float m_fModSpeed = 1.0F;   // x vitesse maxi (0,985 à 1 : jamais plus que le joueur)
    float m_fModApexK = 1.0F;   // x corde (0,75 à 1,25) : chaque IA a sa façon de prendre les virages
    float m_fModWideK = 1.0F;   // x entrée / sortie larges (0,5 à 1,5)
+   // [mod] plan chrono du circuit (ModPlans, IA expertes) : ligne, vitesses et prudence ; null = trajectoire calculée
+   ModPlans.Plan m_ModPlan = null;
+   float m_fModPlanK = 1.0F;   // x vitesses du plan (animal entraîné -> animal de cette IA)
    // porte visée : centre, axe vers la droite (unitaire), demi-largeurs, décalage de la cible
    float m_fModGateCX = 0.0F;
    float m_fModGateCZ = 0.0F;
@@ -746,6 +749,8 @@ public class VehicleAI extends GameObject {
          ModChrono.Begin(this); // [mod] IA chrono : plan de cette voiture, voitures traversables
       }
 
+      this.m_ModPlan = ModPlans.For(this); // [mod] plan chrono validé du circuit (IA expertes)
+      this.m_fModPlanK = this.m_ModPlan != null ? ModPlans.SpeedK(this.m_ModPlan, this.m_Vehicle) : 1.0F;
       this.ModChooseNextPoint();
       this.m_bMoving = true;
       this.m_Vehicle.CalculateVehicleInput(true);
@@ -759,7 +764,8 @@ public class VehicleAI extends GameObject {
             + "), precision x" + ModAI.F(this.m_fModSkill) + ", couloir " + ModAI.F(this.m_fModLane) + ", agressivite "
             + ModAI.F(this.m_fModAggro) + ", vitesse x" + ModAI.F(this.m_fModSpeed * ModAI._MODE_SPEED[ModAI.Mode()]) + ", virage x"
             + ModAI.F(this.m_fCurrTurningLevelModifier) + ", derapage x" + ModAI.F(this.m_fCurrSlideModifier) + ", corde x"
-            + ModAI.F(this.m_fModApexK) + ", largeur x" + ModAI.F(this.m_fModWideK) + "\n"
+            + ModAI.F(this.m_fModApexK) + ", largeur x" + ModAI.F(this.m_fModWideK)
+            + (this.m_ModPlan != null ? ", PLAN CHRONO (gain " + this.m_ModPlan.m_sGain + " %, vitesses x" + ModAI.F(this.m_fModPlanK) + ")" : "") + "\n"
       );
    }
 
@@ -889,6 +895,14 @@ public class VehicleAI extends GameObject {
          if (o == o) {
             return o;
          }
+      }
+
+      if (this.m_ModPlan != null && i >= 0 && i < this.m_ModPlan.m_aOff.length) {
+         // [mod] plan chrono (ModPlans) + le petit couloir de cette IA, dans le couloir libre de la carte ; point
+         // dangereux relevé pendant la course : vers le milieu du couloir, comme sans plan
+         float po = ModAIMap.Clamp(i, this.m_ModPlan.m_aOff[i] + this.m_fModLane * ModPlans._SPREAD);
+         float pm = ModAIMap.Mid(i);
+         return pm + (po - pm) * (1.0F - this.ModDanger(i));
       }
 
       TrackPoint p = this.m_Track.GetPoint(i);
@@ -1169,6 +1183,8 @@ public class VehicleAI extends GameObject {
       float caution = _MOD_CAUTION * (1.1F - _MOD_CAUTION_LEVEL * this.m_iAILevel) * (1.0F + _MOD_DANGER_CAUTION * Math.max(this.ModDanger(this.m_iCurrPoint), this.ModDanger(this.m_iModNext)));
       if (ModChrono.m_bOn) {
          caution *= ModChrono.Caution(this, this.m_iCurrPoint); // [mod] IA chrono : prudence du plan à cette porte
+      } else if (this.m_ModPlan != null && this.m_iCurrPoint >= 0 && this.m_iCurrPoint < this.m_ModPlan.m_aCaut.length) {
+         caution *= this.m_ModPlan.m_aCaut[this.m_iCurrPoint]; // [mod] plan chrono (ModPlans) : prudence apprise
       }
       if (speed > vmax * 0.15F && !v.m_bTurbo && turn > 0.0F) {
          float need = a0 / turn * caution;
@@ -1222,6 +1238,12 @@ public class VehicleAI extends GameObject {
 
    // vitesse de passage permise à la porte i : apprise (aimap.dat), ou celle du plan en IA chrono
    float ModSpeedLimit(int i) {
+      if (!ModChrono.m_bOn && this.m_ModPlan != null && i >= 0 && i < this.m_ModPlan.m_aLim.length) {
+         // [mod] plan chrono (ModPlans) : même vitesse réelle de passage que l'animal entraîné
+         float l = this.m_ModPlan.m_aLim[i];
+         return l >= 1.0F ? 1.0F : Math.min(1.0F, l * this.m_fModPlanK);
+      }
+
       return ModChrono.m_bOn ? ModChrono.Limit(this, i) : ModAIMap.Speed(this.m_Track, i);
    }
 
@@ -1595,6 +1617,11 @@ public class VehicleAI extends GameObject {
       }
 
       float[] a = ModDangerTable(this.m_Track);
+      if (this.m_ModPlan != null) {
+         // [mod] plan chrono (ModPlans) : les dangers appris sont déjà dans sa prudence ; seulement ceux de la course
+         return i >= 0 && i < a.length ? Math.min(1.0F, a[i]) : 0.0F;
+      }
+
       return i >= 0 && i < a.length ? Math.min(1.0F, ModAIMap.Saved(this.m_Track, i) + a[i]) : 0.0F;
    }
 

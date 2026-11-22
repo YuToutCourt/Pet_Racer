@@ -472,3 +472,35 @@ remesurée une fois (6 x la base) ; le record est gardé.
 - Le premier passage sur chaque circuit apprend les bornes, le suivant les contourne. Simulation hors jeu sur les
   chocs de Désert 1 variante : porte 40 de +84 à environ −52, la 39 reste bloquée par son couloir. Si les voitures
   frottent plus loin, de nouvelles bornes s'ajoutent à la course d'après.
+
+## Plans chrono pour les IA du jeu (2026-11-22)
+
+Demande du joueur : que les IA du jeu (expert, en ligne) profitent des plans trouvés par l'IA chrono.
+
+- `mods/java/ModPlans.java` lit `Data\aiplans.dat` (une ligne par `circuit|sens|portes` : `animal=`, `gain=`, `off=`,
+  `plan=` limite%:prudence%, même écriture qu'aichrono.dat). `VehicleAI.ModStart` donne le plan du circuit à chaque IA
+  de niveau 5 (expert : course simple, Grand Prix, salons et parties classées, où l'hôte fait rouler les IA) ; pas de
+  plan en IA chrono, en difficulté « d'origine », à un autre niveau, ou si le nombre de portes diffère.
+- Avec plan : `ModLineOffset` = décalage du plan + couloir de l'IA (`m_fModLane` x `_SPREAD` = ±40, les 5 expertes ne
+  se suivent pas sur la même ligne), dans le couloir libre de la carte (`ModAIMap.Clamp`) ; `ModSpeedLimit` = limite
+  du plan ; `ModSpeedControl` : prudence x celle du plan. `ModDanger` ne compte plus que les dangers relevés pendant la
+  course (ceux d'aimap.dat sont déjà dans la prudence du plan : pas deux fois). Évitement, bonus, dégagement : comme avant.
+- Vitesses : en part de la vitesse maxi de l'animal entraîné (Ours) ; x `VehicleParams._ANIMALS_SPEED_COEFS` Ours /
+  animal de l'IA, pour la même vitesse réelle de passage (Lion : x0,9). Royal (`UpdateMaxSpeedAccelEqualAll`) : x1.
+- **Seulement les plans qui battent l'IA experte** : `python mods\plans-ia.py` (lancé aussi par `package.ps1 -AiMap`)
+  compare, par circuit, les tours lancés réels (lignes A de l'historique) de la voiture « base » des 10 dernières
+  courses chrono à ceux des IA expertes des courses normales : gain ≥ 2 % et au plus 1 remise en piste ou blocage par
+  course. Les voitures chrono roulent seules et traversables, d'où la marge. Au 2026-11-22 : **14 plans gardés sur
+  31** (Forêt 3 variante +14 %, Hiver 3 +10 %, Tropiques 2 variante +10 %…) ; écartés : égaux ou plus lents (Forêt 1-2,
+  Lune 2-3, Royal…) et les plans pris au piège (Tropiques 1 aller 21 incidents par course, variante 73 ; Désert 1
+  variante ; Lune 1).
+- **Vérification en vraies courses** : `mods\entrainer-ia.ps1 -Plans` = entraînement normal où une IA experte sur deux
+  (place sur la grille alternée d'une course à l'autre) suit le plan, colonne `plan=1/0` des lignes A. Dès 6 IA de
+  chaque côté sur un circuit, `plans-ia.py` juge sur ces courses (gain ≥ 0,5 %) au lieu des mesures chrono. Sans
+  `-Plans`, l'entraînement normal roule sans plan (la mémoire aimap.dat s'apprend comme avant).
+- crash.log : `[mod] plans : N circuit(s)…` au premier départ, `PLAN CHRONO (gain x %, vitesses x…)` dans la ligne de
+  chaque IA qui en suit un.
+
+À vérifier en jeu : une course expert sur Forêt 3 variante (le plus gros gain) : les IA vont plus vite qu'avant sans
+taper plus ; le Lion et la Panthère ne sortent pas aux virages (vitesses converties) ; puis `entrainer-ia.ps1 -Plans
+-Passes 3` et relancer `plans-ia.py` pour voir le verdict « mixtes ».
